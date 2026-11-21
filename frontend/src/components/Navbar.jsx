@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, Wrench, X } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { LogOut, Menu, Wrench, X } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const NAV_LINKS = [
   { label: 'Home', to: '/' },
@@ -12,12 +13,20 @@ const NAV_LINKS = [
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { user, role, isAuthenticated, logout } = useAuth();
 
   const isActive = (path) => {
     if (path === '/') {
       return pathname === '/';
     }
     return pathname === path || pathname.startsWith(`${path}/`);
+  };
+
+  const handleLogout = () => {
+    logout();
+    setMobileMenuOpen(false);
+    navigate('/');
   };
 
   return (
@@ -55,14 +64,35 @@ export default function Navbar() {
           })}
         </div>
 
-        {/* Desktop CTA */}
-        <div className="hidden md:block">
-          <Link
-            to="/auth"
-            className="inline-flex items-center justify-center rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2"
-          >
-            Login / Register
-          </Link>
+        {/* Desktop Auth / User Controls */}
+        <div className="hidden items-center gap-3 md:flex">
+          {isAuthenticated ? (
+            <>
+              <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
+                <span className="max-w-[140px] truncate text-sm font-medium text-slate-800">
+                  {user?.name}
+                </span>
+                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-blue-700">
+                  {role}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-100 hover:text-slate-900"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/auth"
+              className="inline-flex items-center justify-center rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2"
+            >
+              Login / Register
+            </Link>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -98,14 +128,36 @@ export default function Navbar() {
                 </Link>
               );
             })}
+
             <div className="pt-2">
-              <Link
-                to="/auth"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block w-full rounded-lg bg-blue-700 px-4 py-2.5 text-center text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-800"
-              >
-                Login / Register
-              </Link>
+              {isAuthenticated ? (
+                <div className="space-y-2 border-t border-slate-100 pt-2">
+                  <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                    <span className="truncate text-sm font-medium text-slate-800">
+                      {user?.name}
+                    </span>
+                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-blue-700">
+                      {role}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-100"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  to="/auth"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block w-full rounded-lg bg-blue-700 px-4 py-2.5 text-center text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-800"
+                >
+                  Login / Register
+                </Link>
+              )}
             </div>
           </div>
         </div>
