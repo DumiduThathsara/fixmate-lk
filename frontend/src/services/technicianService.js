@@ -2,19 +2,40 @@ import apiClient from './apiClient';
 import { MOCK_TECHNICIANS, SERVICE_CATEGORIES } from '../data/mockData';
 
 const USE_API = import.meta.env.VITE_ENABLE_API === 'true';
-const TECH_PROFILES_KEY = 'fixmate_tech_profiles';
+const TECHNICIANS_STORAGE_KEY = 'fixmate_technicians';
 
-function readTechProfiles() {
+function normalizeTechnician(tech) {
+  return {
+    available: true,
+    verified: true,
+    workingHours: '8:00 AM - 6:00 PM (Mon - Sat)',
+    skills: [tech.category, 'Diagnostics', 'Preventive Maintenance'],
+    phone: '077 456 7890',
+    ...tech,
+  };
+}
+
+function readStoredTechnicians() {
   try {
-    const raw = localStorage.getItem(TECH_PROFILES_KEY);
-    return raw ? JSON.parse(raw) : {};
+    const raw = localStorage.getItem(TECHNICIANS_STORAGE_KEY);
+    if (!raw) {
+      const seeded = MOCK_TECHNICIANS.map(normalizeTechnician);
+      localStorage.setItem(TECHNICIANS_STORAGE_KEY, JSON.stringify(seeded));
+      return seeded;
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0
+      ? parsed.map(normalizeTechnician)
+      : MOCK_TECHNICIANS.map(normalizeTechnician);
   } catch {
-    return {};
+    const seeded = MOCK_TECHNICIANS.map(normalizeTechnician);
+    localStorage.setItem(TECHNICIANS_STORAGE_KEY, JSON.stringify(seeded));
+    return seeded;
   }
 }
 
-function writeTechProfiles(profiles) {
-  localStorage.setItem(TECH_PROFILES_KEY, JSON.stringify(profiles));
+function writeStoredTechnicians(technicians) {
+  localStorage.setItem(TECHNICIANS_STORAGE_KEY, JSON.stringify(technicians));
 }
 
 /**
@@ -44,7 +65,7 @@ export async function getFeaturedTechnicians(limit = 4) {
       });
       return data;
     }
-    return [...MOCK_TECHNICIANS]
+    return [...readStoredTechnicians()]
       .sort((a, b) => b.rating - a.rating || b.reviewCount - a.reviewCount)
       .slice(0, limit);
   } catch (error) {
@@ -76,12 +97,16 @@ export async function searchTechnicians({
     }
 
     const query = search.trim().toLowerCase();
-    const filtered = MOCK_TECHNICIANS.filter((tech) => {
+    const filtered = readStoredTechnicians().filter((tech) => {
       if (query) {
+        const matchesSkills =
+          Array.isArray(tech.skills) &&
+          tech.skills.some((s) => s.toLowerCase().includes(query));
         const matchesQuery =
           tech.name.toLowerCase().includes(query) ||
           (tech.bio && tech.bio.toLowerCase().includes(query)) ||
-          tech.category.toLowerCase().includes(query);
+          tech.category.toLowerCase().includes(query) ||
+          matchesSkills;
         if (!matchesQuery) return false;
       }
 
@@ -138,24 +163,70 @@ export async function searchTechnicians({
 }
 
 /**
- * Load a technician's profile settings & availability.
+ * Fetch a single technician by ID.
  */
-export async function getTechnicianProfile(technicianId, fallback = {}) {
+export async function getTechnicianById(id) {
   try {
     if (USE_API) {
-      const { data } = await apiClient.get(`/technicians/${technicianId}/profile`);
+      const { data } = await apiClient.get(`/technicians/${id}`);
       return data;
     }
 
-    const key = technicianId || 'default-technician';
-    const profiles = readTechProfiles();
-    return {
-      available: true,
+    const technicians = readStoredTechnicians();
+    const match = technicians.find((t) => t.id === id);
+    if (!match) {
+      throw new Error('Technician not found.');
+    }
+    return match;
+  } catch (error) {
+    console.error('Failed to fetch technician by id:', error);
+    throw error;
+  }
+}
+
+/**
+ * Match the logged-in technician from AuthContext or create/return an editable profile record.
+ */
+export async function getTechnicianByEmailOrUser(user) {
+  try {
+    if (USE_API) {
+      const { data } = await apiClient.get('/technicians/me');
+      return data;
+    }
+
+    const technicians = readStoredTechnicians();
+    const email = user?.email?.toLowerCase();
+    const existing = technicians.find(
+      (t) =>
+        (user?.id && t.id === user.id) ||
+        (email && t.email && t.email.toLowerCase() === email)
+    );
+
+    if (existing) {
+      return existing;
+    }
+
+    const newProfile = normalizeTechnician({
+      id: user?.id || 'tech-1',
+      name: user?.name || 'Kasun Perera',
+      email: user?.email || '',
+      phone: user?.phone || '077 456 7890',
+      category: user?.serviceCategory || 'Plumbing',
+      district: user?.district || 'Colombo',
+      rating: 4.9,
+      reviewCount: 24,
       visitFee: 1500,
-      district: fallback.district || 'Colombo',
-      bio: 'Experienced and verified local technician providing reliable residential and commercial repairs.',
-      ...profiles[key],
-    };
+      experienceYears: 5,
+      verified: true,
+      available: true,
+      workingHours: '8:00 AM - 6:00 PM (Mon - Sat)',
+      skills: [user?.serviceCategory || 'Plumbing', 'Diagnostics', 'Emergency Repairs'],
+      bio: 'Verified local technician providing reliable, punctual residential and commercial repairs.',
+      avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
+    });
+
+    writeStoredTechnicians([newProfile, ...technicians]);
+    return newProfile;
   } catch (error) {
     console.error('Failed to load technician profile:', error);
     throw error;
@@ -174,14 +245,22 @@ export async function updateTechnicianAvailability(technicianId, isAvailable) {
       return data;
     }
 
-    const key = technicianId || 'default-technician';
-    const profiles = readTechProfiles();
-    const updated = {
-      ...(profiles[key] || {}),
-      available: Boolean(isAvailable),
-    };
-    writeTechProfiles({ ...profiles, [key]: updated });
-    return updated;
+    const technicians = readStoredTechnicians();
+    let updatedTech = null;
+
+    const next = technicians.map((tech) => {
+      if (tech.id === technicianId) {
+        updatedTech = { ...tech, available: Boolean(isAvailable) };
+        return updatedTech;
+      }
+      return tech;
+    });
+
+    if (updatedTech) {
+      writeStoredTechnicians(next);
+    }
+
+    return updatedTech || { id: technicianId, available: Boolean(isAvailable) };
   } catch (error) {
     console.error('Failed to update availability:', error);
     throw error;
@@ -189,29 +268,46 @@ export async function updateTechnicianAvailability(technicianId, isAvailable) {
 }
 
 /**
- * Update technician profile settings (visit fee, bio, district).
+ * Update customizable technician profile fields across the shared store.
  */
-export async function updateTechnicianProfile(technicianId, { visitFee, bio, district }) {
+export async function updateTechnicianProfile(id, updatedFields) {
   try {
     if (USE_API) {
-      const { data } = await apiClient.patch(`/technicians/${technicianId}/profile`, {
-        visitFee,
-        bio,
-        district,
-      });
+      const { data } = await apiClient.patch(`/technicians/${id}/profile`, updatedFields);
       return data;
     }
 
-    const key = technicianId || 'default-technician';
-    const profiles = readTechProfiles();
-    const updated = {
-      ...(profiles[key] || {}),
-      visitFee: Number(visitFee),
-      bio: (bio || '').trim(),
-      district,
+    const technicians = readStoredTechnicians();
+    let updatedTech = null;
+
+    const sanitized = {
+      ...updatedFields,
+      ...(updatedFields.visitFee !== undefined
+        ? { visitFee: Number(updatedFields.visitFee) }
+        : {}),
+      ...(updatedFields.experienceYears !== undefined
+        ? { experienceYears: Number(updatedFields.experienceYears) }
+        : {}),
+      ...(updatedFields.bio !== undefined
+        ? { bio: String(updatedFields.bio).trim() }
+        : {}),
     };
-    writeTechProfiles({ ...profiles, [key]: updated });
-    return updated;
+
+    const next = technicians.map((tech) => {
+      if (tech.id === id) {
+        updatedTech = normalizeTechnician({ ...tech, ...sanitized });
+        return updatedTech;
+      }
+      return tech;
+    });
+
+    if (!updatedTech) {
+      updatedTech = normalizeTechnician({ id, ...sanitized });
+      next.unshift(updatedTech);
+    }
+
+    writeStoredTechnicians(next);
+    return updatedTech;
   } catch (error) {
     console.error('Failed to update technician profile:', error);
     throw error;
@@ -222,7 +318,8 @@ const technicianService = {
   getCategories,
   getFeaturedTechnicians,
   searchTechnicians,
-  getTechnicianProfile,
+  getTechnicianById,
+  getTechnicianByEmailOrUser,
   updateTechnicianAvailability,
   updateTechnicianProfile,
 };

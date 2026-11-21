@@ -56,7 +56,7 @@ export const MOCK_TECHNICIANS = [
     verified: true,
     available: true,
     bio: 'Specialist in residential pipework, pressure pump installation, and bathroom fitting.',
-    avatar: 'https://ui-avatars.com/api/?name=Kasun+Perera&background=1d4ed8&color=fff&size=128',
+    avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
   },
   {
     id: 'tech-2',
@@ -70,7 +70,7 @@ export const MOCK_TECHNICIANS = [
     verified: true,
     available: true,
     bio: 'Certified electrician for domestic rewiring, surge protection, and solar inverter setups.',
-    avatar: 'https://ui-avatars.com/api/?name=Nimal+Silva&background=0f766e&color=fff&size=128',
+    avatar: 'https://randomuser.me/api/portraits/men/44.jpg',
   },
   {
     id: 'tech-3',
@@ -84,7 +84,7 @@ export const MOCK_TECHNICIANS = [
     verified: true,
     available: true,
     bio: 'Split & inverter AC servicing, refrigerant refilling, and full chemical wash.',
-    avatar: 'https://ui-avatars.com/api/?name=Ruwan+Jayawardena&background=0369a1&color=fff&size=128',
+    avatar: 'https://randomuser.me/api/portraits/men/68.jpg',
   },
   {
     id: 'tech-4',
@@ -98,7 +98,7 @@ export const MOCK_TECHNICIANS = [
     verified: true,
     available: true,
     bio: 'Teak & mahogany furniture repair, door alignment, and custom pantry cupboards.',
-    avatar: 'https://ui-avatars.com/api/?name=Tharindu+Bandara&background=b45309&color=fff&size=128',
+    avatar: 'https://randomuser.me/api/portraits/men/75.jpg',
   },
   {
     id: 'tech-5',
@@ -112,7 +112,7 @@ export const MOCK_TECHNICIANS = [
     verified: true,
     available: true,
     bio: 'Front-load washing machine, inverter fridge, and microwave circuit diagnostics.',
-    avatar: 'https://ui-avatars.com/api/?name=Mohamed+Fazil&background=4338ca&color=fff&size=128',
+    avatar: 'https://randomuser.me/api/portraits/men/12.jpg',
   },
   {
     id: 'tech-6',
@@ -126,7 +126,7 @@ export const MOCK_TECHNICIANS = [
     verified: true,
     available: true,
     bio: 'Interior emulsion, exterior weather-shield coating, and dampness waterproofing.',
-    avatar: 'https://ui-avatars.com/api/?name=Suresh+Kumar&background=334155&color=fff&size=128',
+    avatar: 'https://randomuser.me/api/portraits/men/18.jpg',
   },
   {
     id: 'tech-7',
@@ -140,7 +140,7 @@ export const MOCK_TECHNICIANS = [
     verified: true,
     available: true,
     bio: 'Three-phase distribution boards, CCTV power cabling, and emergency fault tracing.',
-    avatar: 'https://ui-avatars.com/api/?name=Dinesh+Fernando&background=1e40af&color=fff&size=128',
+    avatar: 'https://randomuser.me/api/portraits/men/22.jpg',
   },
   {
     id: 'tech-8',
@@ -154,7 +154,7 @@ export const MOCK_TECHNICIANS = [
     verified: true,
     available: true,
     bio: 'Overhead water tank cleaning, tap replacements, and drainage unblocking.',
-    avatar: 'https://ui-avatars.com/api/?name=Chamara+Wijesinghe&background=0d9488&color=fff&size=128',
+    avatar: 'https://randomuser.me/api/portraits/men/29.jpg',
   },
   {
     id: 'tech-9',
@@ -168,7 +168,7 @@ export const MOCK_TECHNICIANS = [
     verified: true,
     available: true,
     bio: 'Commercial & residential HVAC maintenance, PCB repair, and new unit installation.',
-    avatar: 'https://ui-avatars.com/api/?name=Pradeep+Kumara&background=0284c7&color=fff&size=128',
+    avatar: 'https://randomuser.me/api/portraits/men/36.jpg',
   },
   {
     id: 'tech-10',
@@ -182,7 +182,7 @@ export const MOCK_TECHNICIANS = [
     verified: true,
     available: true,
     bio: 'Refrigerator compressor replacement, water purifier servicing, and oven repairs.',
-    avatar: 'https://ui-avatars.com/api/?name=Ramesh+Selvam&background=6d28d9&color=fff&size=128',
+    avatar: 'https://randomuser.me/api/portraits/men/41.jpg',
   },
   {
     id: 'tech-11',
@@ -196,7 +196,7 @@ export const MOCK_TECHNICIANS = [
     verified: true,
     available: true,
     bio: 'Window frame restoration, lock fitting, and custom timber shelving.',
-    avatar: 'https://ui-avatars.com/api/?name=Asanka+Rathnayake&background=92400e&color=fff&size=128',
+    avatar: 'https://randomuser.me/api/portraits/men/52.jpg',
   },
   {
     id: 'tech-12',
@@ -210,7 +210,7 @@ export const MOCK_TECHNICIANS = [
     verified: true,
     available: true,
     bio: 'Fast interior repainting, ceiling touch-ups, and timber lacquer finishing.',
-    avatar: 'https://ui-avatars.com/api/?name=Nuwan+Jayasinghe&background=475569&color=fff&size=128',
+    avatar: 'https://randomuser.me/api/portraits/men/57.jpg',
   },
   {
     id: 'tech-13',
@@ -224,7 +224,7 @@ export const MOCK_TECHNICIANS = [
     verified: true,
     available: true,
     bio: 'Senior HVAC specialist for VRF systems, inverter ACs, and precision diagnostics.',
-    avatar: 'https://ui-avatars.com/api/?name=Sanjeewa+Gunasekara&background=1d4ed8&color=fff&size=128',
+    avatar: 'https://randomuser.me/api/portraits/men/64.jpg',
   },
   {
     id: 'tech-14',
@@ -238,6 +238,6 @@ export const MOCK_TECHNICIANS = [
     verified: true,
     available: true,
     bio: 'Home earthing, lightning protection, and energy-efficient LED lighting upgrades.',
-    avatar: 'https://ui-avatars.com/api/?name=Lahiru+Senanayake&background=0f766e&color=fff&size=128',
+    avatar: 'https://randomuser.me/api/portraits/men/71.jpg',
   },
 ];

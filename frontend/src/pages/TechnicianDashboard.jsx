@@ -1,18 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Briefcase,
   Calendar,
+  Camera,
   Check,
   CheckCircle2,
   Clock,
+  Edit3,
   Inbox,
   MapPin,
   Phone,
+  Plus,
   Settings,
   Star,
+  Trash2,
   Wallet,
   X,
 } from 'lucide-react';
+import TechnicianCard from '../components/TechnicianCard';
 import { SRI_LANKA_DISTRICTS } from '../constants/districts';
 import { useAuth } from '../context/AuthContext';
 import bookingService from '../services/bookingService';
@@ -22,7 +27,7 @@ const WORKSPACE_TABS = [
   { id: 'requests', label: 'Incoming Requests' },
   { id: 'schedule', label: 'Active Schedule' },
   { id: 'history', label: 'Job History' },
-  { id: 'settings', label: 'Service Settings' },
+  { id: 'settings', label: 'My Profile & Settings' },
 ];
 
 const HISTORY_BADGE_STYLES = {
@@ -30,23 +35,50 @@ const HISTORY_BADGE_STYLES = {
   Declined: 'border-red-200 bg-red-100 text-red-800',
 };
 
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+
+function getInitials(name = '') {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p.charAt(0).toUpperCase())
+    .join('');
+}
+
 export default function TechnicianDashboard() {
-  const { user } = useAuth();
-  const technicianId = user?.id || 'default-technician';
+  const { user, updateUser } = useAuth();
+  const fileInputRef = useRef(null);
 
   const [bookings, setBookings] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('requests');
   const [updatingBookingId, setUpdatingBookingId] = useState(null);
 
-  // Availability & Service Settings state
+  // Technician Profile & Availability state
+  const [techId, setTechId] = useState(user?.id || 'tech-1');
   const [isAvailable, setIsAvailable] = useState(true);
   const [availabilitySaving, setAvailabilitySaving] = useState(false);
+
   const [profileForm, setProfileForm] = useState({
-    visitFee: 1500,
+    name: user?.name || 'Kasun Perera',
+    phone: user?.phone || '077 456 7890',
     district: user?.district || 'Colombo',
+    category: user?.serviceCategory || 'Plumbing',
+    experienceYears: 5,
+    visitFee: 1500,
+    workingHours: '8:00 AM - 6:00 PM (Mon - Sat)',
+    skills: ['Plumbing', 'Diagnostics', 'Preventive Maintenance'],
     bio: '',
+    avatar: '',
+    rating: 4.9,
+    reviewCount: 24,
+    verified: true,
   });
+
+  const [skillInput, setSkillInput] = useState('');
+  const [avatarError, setAvatarError] = useState('');
   const [profileSaving, setProfileSaving] = useState(false);
   const [settingsSavedMsg, setSettingsSavedMsg] = useState('');
 
@@ -55,18 +87,32 @@ export default function TechnicianDashboard() {
     setLoading(true);
 
     Promise.all([
-      bookingService.getTechnicianBookings(technicianId),
-      technicianService.getTechnicianProfile(technicianId, { district: user?.district }),
+      technicianService.getTechnicianByEmailOrUser(user),
+      technicianService.getCategories(),
     ])
-      .then(([bookingList, profile]) => {
+      .then(async ([profile, cats]) => {
         if (!active) return;
-        setBookings(bookingList);
+        setTechId(profile.id);
+        setCategories(cats);
         setIsAvailable(profile.available ?? true);
         setProfileForm({
+          name: profile.name || user?.name || 'Kasun Perera',
+          phone: profile.phone || '077 456 7890',
+          district: profile.district || 'Colombo',
+          category: profile.category || 'Plumbing',
+          experienceYears: profile.experienceYears ?? 5,
           visitFee: profile.visitFee ?? 1500,
-          district: profile.district || user?.district || 'Colombo',
+          workingHours: profile.workingHours || '8:00 AM - 6:00 PM (Mon - Sat)',
+          skills: Array.isArray(profile.skills) ? profile.skills : [],
           bio: profile.bio || '',
+          avatar: profile.avatar || '',
+          rating: profile.rating ?? 4.9,
+          reviewCount: profile.reviewCount ?? 0,
+          verified: profile.verified ?? true,
         });
+
+        const bookingList = await bookingService.getTechnicianBookings(profile.id);
+        if (active) setBookings(bookingList);
       })
       .catch((err) => console.error('Failed to load technician dashboard:', err))
       .finally(() => {
@@ -76,13 +122,13 @@ export default function TechnicianDashboard() {
     return () => {
       active = false;
     };
-  }, [technicianId, user?.district]);
+  }, [user?.id, user?.email]);
 
   const handleToggleAvailability = async () => {
     const nextValue = !isAvailable;
     setAvailabilitySaving(true);
     try {
-      await technicianService.updateTechnicianAvailability(technicianId, nextValue);
+      await technicianService.updateTechnicianAvailability(techId, nextValue);
       setIsAvailable(nextValue);
     } catch (err) {
       console.error('Failed to toggle availability:', err);
@@ -103,20 +149,84 @@ export default function TechnicianDashboard() {
     }
   };
 
+  const handleAvatarChange = (e) => {
+    setAvatarError('');
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setAvatarError('Please select a valid image file (PNG, JPG, WEBP).');
+      return;
+    }
+
+    if (file.size >= MAX_AVATAR_BYTES) {
+      setAvatarError('Image must be smaller than 2MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setProfileForm((prev) => ({ ...prev, avatar: reader.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatarError('');
+    setProfileForm((prev) => ({ ...prev, avatar: '' }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleAddSkills = () => {
+    const tokens = skillInput
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (tokens.length === 0) return;
+
+    setProfileForm((prev) => {
+      const existingLower = new Set(prev.skills.map((s) => s.toLowerCase()));
+      const additions = tokens.filter((t) => !existingLower.has(t.toLowerCase()));
+      return { ...prev, skills: [...prev.skills, ...additions] };
+    });
+    setSkillInput('');
+  };
+
+  const handleRemoveSkill = (skillToRemove) => {
+    setProfileForm((prev) => ({
+      ...prev,
+      skills: prev.skills.filter((s) => s !== skillToRemove),
+    }));
+  };
+
   const handleSaveSettings = async (e) => {
     e.preventDefault();
     setProfileSaving(true);
     setSettingsSavedMsg('');
 
     try {
-      const updated = await technicianService.updateTechnicianProfile(technicianId, profileForm);
-      setProfileForm({
-        visitFee: updated.visitFee,
-        district: updated.district,
-        bio: updated.bio,
+      const updated = await technicianService.updateTechnicianProfile(techId, {
+        name: profileForm.name,
+        phone: profileForm.phone,
+        district: profileForm.district,
+        category: profileForm.category,
+        experienceYears: Number(profileForm.experienceYears),
+        visitFee: Number(profileForm.visitFee),
+        workingHours: profileForm.workingHours,
+        skills: profileForm.skills,
+        bio: profileForm.bio,
+        avatar: profileForm.avatar,
+        available: isAvailable,
       });
-      setSettingsSavedMsg('Service settings saved successfully.');
-      setTimeout(() => setSettingsSavedMsg(''), 4000);
+
+      if (updateUser) {
+        updateUser({ name: updated.name, avatar: updated.avatar });
+      }
+
+      setSettingsSavedMsg('Profile updated! Changes are now live on Find Technicians.');
+      setTimeout(() => setSettingsSavedMsg(''), 5000);
     } catch (err) {
       console.error('Failed to save profile settings:', err);
     } finally {
@@ -142,6 +252,20 @@ export default function TechnicianDashboard() {
     return null;
   };
 
+  const previewTechnician = {
+    id: techId,
+    name: profileForm.name || 'Your Name',
+    category: profileForm.category,
+    district: profileForm.district,
+    rating: profileForm.rating || 4.9,
+    reviewCount: profileForm.reviewCount || 0,
+    visitFee: Number(profileForm.visitFee) || 0,
+    experienceYears: Number(profileForm.experienceYears) || 1,
+    verified: profileForm.verified,
+    available: isAvailable,
+    avatar: profileForm.avatar,
+  };
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       {/* Header & Availability Control */}
@@ -149,10 +273,10 @@ export default function TechnicianDashboard() {
         <div>
           <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-              {user?.name || 'Kasun Perera'}
+              {profileForm.name}
             </h1>
             <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-0.5 text-xs font-semibold text-blue-700">
-              {user?.serviceCategory || 'Plumbing'}
+              {profileForm.category}
             </span>
             <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-0.5 text-xs font-medium text-slate-700">
               <MapPin className="h-3.5 w-3.5 text-slate-500" />
@@ -160,39 +284,50 @@ export default function TechnicianDashboard() {
             </span>
           </div>
           <p className="mt-1 text-sm text-slate-600">
-            Manage incoming service requests, active jobs, and your service profile.
+            Manage incoming service requests, active jobs, and your public technician profile.
           </p>
         </div>
 
-        {/* Interactive Availability Toggle Switch */}
-        <div className="flex items-center gap-3 self-start rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm lg:self-auto">
+        <div className="flex flex-wrap items-center gap-3 self-start lg:self-auto">
           <button
             type="button"
-            role="switch"
-            aria-checked={isAvailable}
-            disabled={availabilitySaving}
-            onClick={handleToggleAvailability}
-            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2 disabled:opacity-60 ${
-              isAvailable ? 'bg-emerald-500' : 'bg-slate-400'
-            }`}
+            onClick={() => setActiveTab('settings')}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
           >
-            <span
-              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${
-                isAvailable ? 'translate-x-5' : 'translate-x-0'
-              }`}
-            />
+            <Edit3 className="h-4 w-4 text-blue-700" />
+            Edit Profile
           </button>
-          <div>
-            <p
-              className={`text-sm font-bold ${
-                isAvailable ? 'text-emerald-700' : 'text-red-600'
+
+          {/* Interactive Availability Toggle Switch */}
+          <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isAvailable}
+              disabled={availabilitySaving}
+              onClick={handleToggleAvailability}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2 disabled:opacity-60 ${
+                isAvailable ? 'bg-emerald-500' : 'bg-slate-400'
               }`}
             >
-              {isAvailable ? 'Available for Bookings' : 'Currently Busy'}
-            </p>
-            <p className="text-xs text-slate-500">
-              {isAvailable ? 'Customers can request your services' : 'Paused from new requests'}
-            </p>
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${
+                  isAvailable ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+            <div>
+              <p
+                className={`text-sm font-bold ${
+                  isAvailable ? 'text-emerald-700' : 'text-red-600'
+                }`}
+              >
+                {isAvailable ? 'Available for Bookings' : 'Currently Busy'}
+              </p>
+              <p className="text-xs text-slate-500">
+                {isAvailable ? 'Visible to customers' : 'Paused from new requests'}
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -554,98 +689,344 @@ export default function TechnicianDashboard() {
               </div>
             )}
 
-            {/* Tab 4: Service Settings */}
+            {/* Tab 4: My Profile & Settings */}
             {activeTab === 'settings' && (
-              <div className="max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-                <h2 className="text-lg font-bold text-slate-900">Service Profile Settings</h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Update your standard visit fee, operating district, and bio shown to customers.
-                </p>
+              <div className="grid grid-cols-1 gap-8 xl:grid-cols-12">
+                {/* Profile Form */}
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 xl:col-span-7">
+                  <h2 className="text-lg font-bold text-slate-900">My Profile &amp; Settings</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Customize how your profile appears to customers across FixMate LK.
+                  </p>
 
-                {settingsSavedMsg && (
-                  <div
-                    role="status"
-                    className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
-                  >
-                    <CheckCircle2 className="h-4 w-4 shrink-0" />
-                    {settingsSavedMsg}
-                  </div>
-                )}
+                  {settingsSavedMsg && (
+                    <div
+                      role="status"
+                      className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
+                    >
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      {settingsSavedMsg}
+                    </div>
+                  )}
 
-                <form onSubmit={handleSaveSettings} className="mt-6 space-y-5">
-                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <form onSubmit={handleSaveSettings} className="mt-6 space-y-6">
+                    {/* Profile Photo Uploader */}
+                    <div className="flex flex-col items-start gap-5 rounded-xl border border-slate-200 bg-slate-50/70 p-4 sm:flex-row sm:items-center">
+                      <div className="relative shrink-0">
+                        {profileForm.avatar ? (
+                          <img
+                            src={profileForm.avatar}
+                            alt={profileForm.name}
+                            className="h-24 w-24 rounded-full border-4 border-blue-100 object-cover shadow-sm"
+                          />
+                        ) : (
+                          <span className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-blue-100 bg-blue-700 text-xl font-bold text-white shadow-sm">
+                            {getInitials(profileForm.name)}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          aria-label="Upload profile photo"
+                          className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-blue-700 text-white shadow transition-colors hover:bg-blue-800"
+                        >
+                          <Camera className="h-4 w-4" />
+                        </button>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarChange}
+                          className="hidden"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div>
+                          <h3 className="text-sm font-semibold text-slate-900">Profile Photo</h3>
+                          <p className="text-xs text-slate-500">
+                            JPG, PNG, or WEBP under 2MB. Clear headshot works best.
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                          >
+                            Upload Photo
+                          </button>
+                          {profileForm.avatar && (
+                            <button
+                              type="button"
+                              onClick={handleRemoveAvatar}
+                              className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                        {avatarError && (
+                          <p className="text-xs font-medium text-red-600">{avatarError}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Name & Phone */}
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                      <div>
+                        <label
+                          htmlFor="tech-name"
+                          className="mb-1.5 block text-sm font-semibold text-slate-700"
+                        >
+                          Full Name
+                        </label>
+                        <input
+                          id="tech-name"
+                          type="text"
+                          required
+                          value={profileForm.name}
+                          onChange={(e) =>
+                            setProfileForm({ ...profileForm, name: e.target.value })
+                          }
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/20"
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="tech-phone"
+                          className="mb-1.5 block text-sm font-semibold text-slate-700"
+                        >
+                          Contact Phone
+                        </label>
+                        <input
+                          id="tech-phone"
+                          type="tel"
+                          required
+                          value={profileForm.phone}
+                          onChange={(e) =>
+                            setProfileForm({ ...profileForm, phone: e.target.value })
+                          }
+                          placeholder="077 123 4567"
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/20"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Category & District */}
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                      <div>
+                        <label
+                          htmlFor="tech-category"
+                          className="mb-1.5 block text-sm font-semibold text-slate-700"
+                        >
+                          Primary Service Category
+                        </label>
+                        <select
+                          id="tech-category"
+                          value={profileForm.category}
+                          onChange={(e) =>
+                            setProfileForm({ ...profileForm, category: e.target.value })
+                          }
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/20"
+                        >
+                          {categories.map((cat) => (
+                            <option key={cat.id} value={cat.name}>
+                              {cat.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="tech-district"
+                          className="mb-1.5 block text-sm font-semibold text-slate-700"
+                        >
+                          Operating District
+                        </label>
+                        <select
+                          id="tech-district"
+                          value={profileForm.district}
+                          onChange={(e) =>
+                            setProfileForm({ ...profileForm, district: e.target.value })
+                          }
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/20"
+                        >
+                          {SRI_LANKA_DISTRICTS.map((dist) => (
+                            <option key={dist} value={dist}>
+                              {dist}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Experience, Visit Fee, Working Hours */}
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+                      <div>
+                        <label
+                          htmlFor="tech-experience"
+                          className="mb-1.5 block text-sm font-semibold text-slate-700"
+                        >
+                          Experience (Years)
+                        </label>
+                        <input
+                          id="tech-experience"
+                          type="number"
+                          min={0}
+                          max={60}
+                          required
+                          value={profileForm.experienceYears}
+                          onChange={(e) =>
+                            setProfileForm({ ...profileForm, experienceYears: e.target.value })
+                          }
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/20"
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="tech-visit-fee"
+                          className="mb-1.5 block text-sm font-semibold text-slate-700"
+                        >
+                          Visit Fee (LKR)
+                        </label>
+                        <input
+                          id="tech-visit-fee"
+                          type="number"
+                          min={500}
+                          step={100}
+                          required
+                          value={profileForm.visitFee}
+                          onChange={(e) =>
+                            setProfileForm({ ...profileForm, visitFee: e.target.value })
+                          }
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/20"
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="tech-hours"
+                          className="mb-1.5 block text-sm font-semibold text-slate-700"
+                        >
+                          Working Hours
+                        </label>
+                        <input
+                          id="tech-hours"
+                          type="text"
+                          value={profileForm.workingHours}
+                          onChange={(e) =>
+                            setProfileForm({ ...profileForm, workingHours: e.target.value })
+                          }
+                          placeholder="8:00 AM - 6:00 PM"
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/20"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Skills / Specialties */}
                     <div>
                       <label
-                        htmlFor="tech-visit-fee"
+                        htmlFor="tech-skills"
                         className="mb-1.5 block text-sm font-semibold text-slate-700"
                       >
-                        Standard Visit Fee (LKR)
+                        Skills &amp; Specialties
                       </label>
-                      <input
-                        id="tech-visit-fee"
-                        type="number"
-                        min={500}
-                        step={100}
-                        required
-                        value={profileForm.visitFee}
-                        onChange={(e) =>
-                          setProfileForm({ ...profileForm, visitFee: e.target.value })
-                        }
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/20"
+                      <div className="flex gap-2">
+                        <input
+                          id="tech-skills"
+                          type="text"
+                          value={skillInput}
+                          onChange={(e) => setSkillInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddSkills();
+                            }
+                          }}
+                          placeholder="Type skills separated by commas and click Add"
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/20"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddSkills}
+                          className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-300 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Add
+                        </button>
+                      </div>
+
+                      {profileForm.skills.length > 0 && (
+                        <div className="mt-2.5 flex flex-wrap gap-2">
+                          {profileForm.skills.map((skill) => (
+                            <span
+                              key={skill}
+                              className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700"
+                            >
+                              {skill}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveSkill(skill)}
+                                aria-label={`Remove ${skill}`}
+                                className="rounded-full text-blue-500 hover:text-blue-800"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Detailed Service Bio */}
+                    <div>
+                      <label
+                        htmlFor="tech-bio"
+                        className="mb-1.5 block text-sm font-semibold text-slate-700"
+                      >
+                        Detailed Service Bio
+                      </label>
+                      <textarea
+                        id="tech-bio"
+                        rows={4}
+                        value={profileForm.bio}
+                        onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
+                        placeholder="Describe your experience, certifications, tools, and specialties..."
+                        className="w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/20"
                       />
                     </div>
 
-                    <div>
-                      <label
-                        htmlFor="tech-district"
-                        className="mb-1.5 block text-sm font-semibold text-slate-700"
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={profileSaving}
+                        className="rounded-lg bg-blue-700 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        Operating District
-                      </label>
-                      <select
-                        id="tech-district"
-                        value={profileForm.district}
-                        onChange={(e) =>
-                          setProfileForm({ ...profileForm, district: e.target.value })
-                        }
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/20"
-                      >
-                        {SRI_LANKA_DISTRICTS.map((dist) => (
-                          <option key={dist} value={dist}>
-                            {dist}
-                          </option>
-                        ))}
-                      </select>
+                        {profileSaving ? 'Saving Changes...' : 'Save Profile Changes'}
+                      </button>
                     </div>
-                  </div>
+                  </form>
+                </div>
 
-                  <div>
-                    <label
-                      htmlFor="tech-bio"
-                      className="mb-1.5 block text-sm font-semibold text-slate-700"
-                    >
-                      Short Bio &amp; Specialties
-                    </label>
-                    <textarea
-                      id="tech-bio"
-                      rows={4}
-                      value={profileForm.bio}
-                      onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
-                      placeholder="Describe your years of experience, certifications, and key specialties..."
-                      className="w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/20"
-                    />
+                {/* Live Mini-Preview Card */}
+                <div className="xl:col-span-5">
+                  <div className="sticky top-24 rounded-2xl border border-slate-200 bg-slate-100/70 p-6">
+                    <div className="mb-4">
+                      <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">
+                        Live Customer Card Preview
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Updates in real time as you edit your profile.
+                      </p>
+                    </div>
+                    <TechnicianCard technician={previewTechnician} />
                   </div>
-
-                  <div className="flex justify-end">
-                    <button
-                      type="submit"
-                      disabled={profileSaving}
-                      className="rounded-lg bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {profileSaving ? 'Saving...' : 'Save Settings'}
-                    </button>
-                  </div>
-                </form>
+                </div>
               </div>
             )}
           </>

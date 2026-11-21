@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { RotateCcw, Search, SlidersHorizontal, Star } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { CheckCircle2, RotateCcw, Search, SlidersHorizontal, Star } from 'lucide-react';
 import Pagination from '../components/Pagination';
 import TechnicianCard from '../components/TechnicianCard';
 import { SRI_LANKA_DISTRICTS } from '../constants/districts';
@@ -119,29 +119,68 @@ export default function FindTechnicians() {
   const endItem = Math.min(results.currentPage * PAGE_LIMIT, results.totalItems);
 
   return (
-    <div ref={resultsTopRef} className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-      {/* Page Header */}
-      <div className="mb-8 flex flex-col justify-between gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-end">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+    <div>
+      {/* Dark Full-Bleed Page Header Banner */}
+      <section className="relative overflow-hidden bg-slate-950 py-12 text-white lg:py-16">
+        <img
+          src="https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?auto=format&fit=crop&w=1920&q=80"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full object-cover opacity-25"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-900/90 to-slate-900/60"
+        />
+
+        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <nav aria-label="Breadcrumb" className="mb-3 text-xs text-slate-400">
+            <Link to="/" className="transition-colors hover:text-white">
+              Home
+            </Link>
+            <span className="mx-2">/</span>
+            <span className="text-slate-200">Find Technicians</span>
+          </nav>
+
+          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
             Find Verified Technicians
           </h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Browse skilled professionals across all 25 districts in Sri Lanka.
+          <p className="mt-2 max-w-2xl text-sm text-slate-300 sm:text-base">
+            Browse ID-verified, top-rated home repair professionals across all 25 districts in Sri
+            Lanka.
           </p>
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-slate-200 backdrop-blur-sm">
+              <CheckCircle2 className="h-3.5 w-3.5 text-amber-400" />
+              Background Checked
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-slate-200 backdrop-blur-sm">
+              <CheckCircle2 className="h-3.5 w-3.5 text-amber-400" />
+              Transparent Visit Fees
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-slate-200 backdrop-blur-sm">
+              <CheckCircle2 className="h-3.5 w-3.5 text-amber-400" />
+              Instant Online Booking
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <div ref={resultsTopRef} className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        {/* Mobile Filter Toggle */}
+        <div className="mb-6 flex justify-end lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileFiltersOpen((prev) => !prev)}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            {mobileFiltersOpen ? 'Hide Filters' : 'Show Filters'}
+          </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setMobileFiltersOpen((prev) => !prev)}
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 lg:hidden"
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          {mobileFiltersOpen ? 'Hide Filters' : 'Show Filters'}
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
         {/* Left Sidebar Filter Panel */}
         <aside
           className={`lg:col-span-3 ${mobileFiltersOpen ? 'block' : 'hidden lg:block'}`}
@@ -374,6 +413,7 @@ export default function FindTechnicians() {
             </>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

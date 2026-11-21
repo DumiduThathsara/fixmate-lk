@@ -29,6 +29,14 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const updateUser = (partialUser) => {
+    const updated = authService.updateCurrentUser(partialUser);
+    if (updated) {
+      setUser(updated);
+    }
+    return updated;
+  };
+
   const value = {
     user,
     role: user?.role ?? null,
@@ -37,6 +45,7 @@ export function AuthProvider({ children }) {
     register,
     adminLogin,
     logout,
+    updateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -208,12 +208,24 @@ export function getCurrentUser() {
   }
 }
 
+/**
+ * Update persisted user fields (e.g. name, avatar) after profile customization.
+ */
+export function updateCurrentUser(partialUser) {
+  const current = getCurrentUser();
+  if (!current) return null;
+  const updated = { ...current, ...partialUser };
+  localStorage.setItem(USER_KEY, JSON.stringify(updated));
+  return updated;
+}
+
 const authService = {
   loginCustomerOrTech,
   registerUser,
   loginAdmin,
   logout,
   getCurrentUser,
+  updateCurrentUser,
 };
 
 export default authService;

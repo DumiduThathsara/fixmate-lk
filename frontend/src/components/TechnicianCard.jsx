@@ -1,7 +1,19 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, MapPin, Star } from 'lucide-react';
 
+function getInitials(name = '') {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('');
+}
+
 export default function TechnicianCard({ technician }) {
+  const [imgError, setImgError] = useState(false);
+
   const {
     id,
     name,
@@ -12,32 +24,62 @@ export default function TechnicianCard({ technician }) {
     visitFee,
     experienceYears,
     verified,
+    available = true,
     avatar,
   } = technician;
 
   return (
-    <article className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+    <article className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg">
       <div>
         <div className="flex items-start gap-3.5">
-          <img
-            src={avatar}
-            alt={name}
-            className="h-14 w-14 shrink-0 rounded-full border border-slate-200 object-cover"
-          />
+          {avatar && !imgError ? (
+            <img
+              src={avatar}
+              alt={name}
+              onError={() => setImgError(true)}
+              className="h-14 w-14 shrink-0 rounded-full border border-slate-200 object-cover"
+            />
+          ) : (
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-700 text-sm font-bold text-white">
+              {getInitials(name)}
+            </span>
+          )}
+
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <h3 className="truncate text-base font-bold text-slate-900">{name}</h3>
-              {verified && (
-                <CheckCircle2
-                  className="h-4 w-4 shrink-0 text-blue-600"
-                  aria-label="Verified Technician"
-                />
-              )}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <h3
+                  title={name}
+                  className="line-clamp-1 text-base font-bold text-slate-900"
+                >
+                  {name}
+                </h3>
+                {verified && (
+                  <CheckCircle2
+                    className="h-4 w-4 shrink-0 text-blue-600"
+                    aria-label="Verified Technician"
+                  />
+                )}
+              </div>
             </div>
 
-            <span className="mt-1 inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-              {category}
-            </span>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                {category}
+              </span>
+              <span
+                className={`inline-flex items-center gap-1 text-[11px] font-medium ${
+                  available ? 'text-emerald-700' : 'text-slate-500'
+                }`}
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    available ? 'bg-emerald-500' : 'bg-slate-400'
+                  }`}
+                />
+                {available ? 'Available' : 'Busy'}
+              </span>
+            </div>
           </div>
         </div>
 

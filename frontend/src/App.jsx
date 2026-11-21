@@ -9,6 +9,7 @@ import CustomerDashboard from './pages/CustomerDashboard';
 import FindTechnicians from './pages/FindTechnicians';
 import Home from './pages/Home';
 import TechnicianDashboard from './pages/TechnicianDashboard';
+import TechnicianProfile from './pages/TechnicianProfile';
 
 function ComingSoon({ title, sprint, description }) {
   return (
@@ -41,16 +42,7 @@ function App() {
               <Route path="/auth" element={<Auth />} />
               <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/technicians" element={<FindTechnicians />} />
-              <Route
-                path="/technicians/:id"
-                element={
-                  <ComingSoon
-                    title="Technician Profile"
-                    sprint="Sprint 2"
-                    description="Detailed technician profile, ratings, availability, and booking."
-                  />
-                }
-              />
+              <Route path="/technicians/:id" element={<TechnicianProfile />} />
               <Route
                 path="/customer/dashboard"
                 element={
