@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   CalendarCheck,
+  CheckCircle2,
   Hammer,
   MapPin,
   Paintbrush,
@@ -92,79 +93,111 @@ export default function Home() {
 
   return (
     <div>
-      {/* Hero Section */}
-      <section className="bg-gradient-to-br from-blue-800 to-blue-950 text-white">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
-          <div className="mx-auto max-w-3xl text-center">
-            <span className="inline-flex items-center rounded-full border border-blue-400/30 bg-blue-700/40 px-3.5 py-1 text-xs font-semibold uppercase tracking-wider text-blue-100">
-              Sri Lanka&apos;s Trusted Home Service Network
+      {/* Hero Section: Full-Bleed Dark Overlay Background Banner */}
+      <section className="relative overflow-hidden bg-slate-950 text-white">
+        {/* Full-Width Background Image */}
+        <img
+          src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=1920&q=80"
+          alt="Technician working on home electrical and repair equipment"
+          className="absolute inset-0 h-full w-full object-cover object-center"
+        />
+
+        {/* Directional Left-to-Right Dark Gradient Overlay */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-900/80 to-slate-900/35"
+        />
+
+        {/* Left-Aligned Content */}
+        <div className="relative z-10 mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+          <div className="max-w-2xl text-left">
+            <span className="mb-5 inline-block rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs font-medium text-slate-200">
+              Sri Lanka&apos;s #1 On-Demand Technician Network
             </span>
-            <h1 className="mt-5 text-3xl font-extrabold tracking-tight sm:text-5xl">
-              Trusted Local Technicians Across Sri Lanka
+
+            <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
+              Reliable &amp; Trusted Technicians in Sri Lanka
             </h1>
-            <p className="mt-4 text-base text-blue-100 sm:text-lg">
-              Find verified plumbers, electricians, AC technicians, carpenters, and more in your
-              district with upfront visit fees.
+
+            <p className="mb-8 mt-4 max-w-xl text-base text-slate-300 sm:text-lg">
+              Book verified plumbers, electricians, AC technicians, and home repair experts across
+              all 25 districts with upfront pricing.
             </p>
-          </div>
 
-          {/* Dual Search Bar */}
-          <form
-            onSubmit={handleSearch}
-            className="mx-auto mt-10 max-w-4xl rounded-2xl bg-white p-3 shadow-xl sm:p-4"
-          >
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
-              <div className="relative md:col-span-5">
-                <label htmlFor="hero-category" className="sr-only">
-                  Service Category
-                </label>
-                <Wrench className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <select
-                  id="hero-category"
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-3 text-sm font-medium text-slate-800 focus:border-blue-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700/20"
-                >
-                  <option value="">All Service Categories</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.name}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {/* Left-Aligned Search Bar */}
+            <form
+              onSubmit={handleSearch}
+              className="max-w-2xl rounded-xl bg-white p-2 shadow-2xl"
+            >
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-12">
+                <div className="relative sm:col-span-5">
+                  <label htmlFor="hero-category" className="sr-only">
+                    Service Category
+                  </label>
+                  <Wrench className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <select
+                    id="hero-category"
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm font-medium text-slate-800 focus:border-blue-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700/20"
+                  >
+                    <option value="">All Service Categories</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.name}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="relative md:col-span-4">
-                <label htmlFor="hero-district" className="sr-only">
-                  District
-                </label>
-                <MapPin className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <select
-                  id="hero-district"
-                  value={selectedDistrict}
-                  onChange={(e) => setSelectedDistrict(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-3 text-sm font-medium text-slate-800 focus:border-blue-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700/20"
-                >
-                  <option value="">All 25 Districts</option>
-                  {SRI_LANKA_DISTRICTS.map((district) => (
-                    <option key={district} value={district}>
-                      {district}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                <div className="relative sm:col-span-4">
+                  <label htmlFor="hero-district" className="sr-only">
+                    District
+                  </label>
+                  <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <select
+                    id="hero-district"
+                    value={selectedDistrict}
+                    onChange={(e) => setSelectedDistrict(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm font-medium text-slate-800 focus:border-blue-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700/20"
+                  >
+                    <option value="">All 25 Districts</option>
+                    {SRI_LANKA_DISTRICTS.map((district) => (
+                      <option key={district} value={district}>
+                        {district}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="md:col-span-3">
-                <button
-                  type="submit"
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-3 text-sm font-bold text-slate-950 shadow-sm transition-colors hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2"
-                >
-                  <Search className="h-4 w-4" />
-                  Find Technician
-                </button>
+                <div className="sm:col-span-3">
+                  <button
+                    type="submit"
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-sm transition-colors hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2"
+                  >
+                    <Search className="h-4 w-4" />
+                    Find Technician
+                  </button>
+                </div>
               </div>
+            </form>
+
+            {/* Trust Indicators Row */}
+            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-medium text-slate-300 sm:text-sm">
+              <span className="inline-flex items-center gap-1.5">
+                <CheckCircle2 className="h-4 w-4 text-amber-400" />
+                100% ID Verified Pros
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <CheckCircle2 className="h-4 w-4 text-amber-400" />
+                Upfront LKR Pricing
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <CheckCircle2 className="h-4 w-4 text-amber-400" />
+                All 25 Districts Covered
+              </span>
             </div>
-          </form>
+          </div>
         </div>
       </section>
 

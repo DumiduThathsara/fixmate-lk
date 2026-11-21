@@ -2,6 +2,20 @@ import apiClient from './apiClient';
 import { MOCK_TECHNICIANS, SERVICE_CATEGORIES } from '../data/mockData';
 
 const USE_API = import.meta.env.VITE_ENABLE_API === 'true';
+const TECH_PROFILES_KEY = 'fixmate_tech_profiles';
+
+function readTechProfiles() {
+  try {
+    const raw = localStorage.getItem(TECH_PROFILES_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeTechProfiles(profiles) {
+  localStorage.setItem(TECH_PROFILES_KEY, JSON.stringify(profiles));
+}
 
 /**
  * Fetch available service categories.
@@ -123,10 +137,94 @@ export async function searchTechnicians({
   }
 }
 
+/**
+ * Load a technician's profile settings & availability.
+ */
+export async function getTechnicianProfile(technicianId, fallback = {}) {
+  try {
+    if (USE_API) {
+      const { data } = await apiClient.get(`/technicians/${technicianId}/profile`);
+      return data;
+    }
+
+    const key = technicianId || 'default-technician';
+    const profiles = readTechProfiles();
+    return {
+      available: true,
+      visitFee: 1500,
+      district: fallback.district || 'Colombo',
+      bio: 'Experienced and verified local technician providing reliable residential and commercial repairs.',
+      ...profiles[key],
+    };
+  } catch (error) {
+    console.error('Failed to load technician profile:', error);
+    throw error;
+  }
+}
+
+/**
+ * Toggle technician availability for new bookings.
+ */
+export async function updateTechnicianAvailability(technicianId, isAvailable) {
+  try {
+    if (USE_API) {
+      const { data } = await apiClient.patch(`/technicians/${technicianId}/availability`, {
+        available: isAvailable,
+      });
+      return data;
+    }
+
+    const key = technicianId || 'default-technician';
+    const profiles = readTechProfiles();
+    const updated = {
+      ...(profiles[key] || {}),
+      available: Boolean(isAvailable),
+    };
+    writeTechProfiles({ ...profiles, [key]: updated });
+    return updated;
+  } catch (error) {
+    console.error('Failed to update availability:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update technician profile settings (visit fee, bio, district).
+ */
+export async function updateTechnicianProfile(technicianId, { visitFee, bio, district }) {
+  try {
+    if (USE_API) {
+      const { data } = await apiClient.patch(`/technicians/${technicianId}/profile`, {
+        visitFee,
+        bio,
+        district,
+      });
+      return data;
+    }
+
+    const key = technicianId || 'default-technician';
+    const profiles = readTechProfiles();
+    const updated = {
+      ...(profiles[key] || {}),
+      visitFee: Number(visitFee),
+      bio: (bio || '').trim(),
+      district,
+    };
+    writeTechProfiles({ ...profiles, [key]: updated });
+    return updated;
+  } catch (error) {
+    console.error('Failed to update technician profile:', error);
+    throw error;
+  }
+}
+
 const technicianService = {
   getCategories,
   getFeaturedTechnicians,
   searchTechnicians,
+  getTechnicianProfile,
+  updateTechnicianAvailability,
+  updateTechnicianProfile,
 };
 
 export default technicianService;

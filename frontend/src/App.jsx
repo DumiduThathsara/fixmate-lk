@@ -8,6 +8,7 @@ import Auth from './pages/Auth';
 import CustomerDashboard from './pages/CustomerDashboard';
 import FindTechnicians from './pages/FindTechnicians';
 import Home from './pages/Home';
+import TechnicianDashboard from './pages/TechnicianDashboard';
 
 function ComingSoon({ title, sprint, description }) {
   return (
@@ -62,11 +63,7 @@ function App() {
                 path="/technician/dashboard"
                 element={
                   <ProtectedRoute allowedRoles={['TECHNICIAN']}>
-                    <ComingSoon
-                      title="Technician Portal"
-                      sprint="Sprint 4"
-                      description="Manage incoming job requests, schedule, and service analytics."
-                    />
+                    <TechnicianDashboard />
                   </ProtectedRoute>
                 }
               />

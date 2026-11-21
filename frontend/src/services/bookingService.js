@@ -7,6 +7,8 @@ const INITIAL_SEED_BOOKINGS = [
   {
     id: 'bk-1001',
     customerId: 'demo-customer',
+    customerName: 'Amaya Perera',
+    customerPhone: '077 245 8890',
     technicianId: 'tech-1',
     technicianName: 'Kasun Perera',
     category: 'Plumbing',
@@ -23,6 +25,8 @@ const INITIAL_SEED_BOOKINGS = [
   {
     id: 'bk-1002',
     customerId: 'demo-customer',
+    customerName: 'Dilshan Fernando',
+    customerPhone: '071 834 1120',
     technicianId: 'tech-2',
     technicianName: 'Nimal Silva',
     category: 'Electrical',
@@ -39,6 +43,8 @@ const INITIAL_SEED_BOOKINGS = [
   {
     id: 'bk-1003',
     customerId: 'demo-customer',
+    customerName: 'Sachini Jayawardena',
+    customerPhone: '076 512 3349',
     technicianId: 'tech-3',
     technicianName: 'Ruwan Jayawardena',
     category: 'AC Repair',
@@ -55,6 +61,8 @@ const INITIAL_SEED_BOOKINGS = [
   {
     id: 'bk-1004',
     customerId: 'demo-customer',
+    customerName: 'Nuwan Wickramasinghe',
+    customerPhone: '077 908 4412',
     technicianId: 'tech-4',
     technicianName: 'Tharindu Bandara',
     category: 'Carpentry',
@@ -220,10 +228,72 @@ export async function submitReview(bookingId, { rating, comment }) {
   }
 }
 
+const ALLOWED_TECH_STATUSES = ['Accepted', 'Declined', 'Completed'];
+
+/**
+ * Retrieve bookings for the technician portal.
+ */
+export async function getTechnicianBookings(technicianId) {
+  try {
+    if (USE_API) {
+      const { data } = await apiClient.get('/bookings/technician', {
+        params: technicianId ? { technicianId } : undefined,
+      });
+      return data;
+    }
+
+    return readStoredBookings();
+  } catch (error) {
+    console.error('Failed to fetch technician bookings:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update a booking's status from the Technician Portal (Accepted, Declined, Completed).
+ */
+export async function updateBookingStatus(bookingId, newStatus) {
+  if (!ALLOWED_TECH_STATUSES.includes(newStatus)) {
+    throw new Error(`Invalid status transition: ${newStatus}`);
+  }
+
+  try {
+    if (USE_API) {
+      const { data } = await apiClient.patch(`/bookings/${bookingId}/status`, {
+        status: newStatus,
+      });
+      return data;
+    }
+
+    const bookings = readStoredBookings();
+    let updatedBooking = null;
+
+    const nextBookings = bookings.map((booking) => {
+      if (booking.id === bookingId) {
+        updatedBooking = { ...booking, status: newStatus };
+        return updatedBooking;
+      }
+      return booking;
+    });
+
+    if (!updatedBooking) {
+      throw new Error('Booking not found.');
+    }
+
+    writeStoredBookings(nextBookings);
+    return updatedBooking;
+  } catch (error) {
+    console.error('Failed to update booking status:', error);
+    throw error;
+  }
+}
+
 const bookingService = {
   getCustomerBookings,
+  getTechnicianBookings,
   createBooking,
   cancelBooking,
+  updateBookingStatus,
   submitReview,
 };
 
