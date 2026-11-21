@@ -9,14 +9,18 @@ import {
   Edit3,
   Inbox,
   MapPin,
+  MessageSquare,
   Phone,
   Plus,
+  Receipt,
   Settings,
   Star,
   Trash2,
   Wallet,
   X,
+  Zap,
 } from 'lucide-react';
+import BookingChatModal from '../components/BookingChatModal';
 import TechnicianCard from '../components/TechnicianCard';
 import { SRI_LANKA_DISTRICTS } from '../constants/districts';
 import { useAuth } from '../context/AuthContext';
@@ -55,6 +59,10 @@ export default function TechnicianDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('requests');
   const [updatingBookingId, setUpdatingBookingId] = useState(null);
+  const [chatBooking, setChatBooking] = useState(null);
+  const [quoteOpenId, setQuoteOpenId] = useState(null);
+  const [quoteForm, setQuoteForm] = useState({ partsCost: '', laborCost: '', note: '' });
+  const [quoteSaving, setQuoteSaving] = useState(false);
 
   // Technician Profile & Availability state
   const [techId, setTechId] = useState(user?.id || 'tech-1');
@@ -146,6 +154,30 @@ export default function TechnicianDashboard() {
       console.error('Failed to update booking status:', err);
     } finally {
       setUpdatingBookingId(null);
+    }
+  };
+
+  const handleBookingUpdated = (updatedBooking) => {
+    setBookings((prev) =>
+      prev.map((b) => (b.id === updatedBooking.id ? updatedBooking : b))
+    );
+    if (chatBooking?.id === updatedBooking.id) {
+      setChatBooking(updatedBooking);
+    }
+  };
+
+  const handleSubmitQuote = async (e, bookingId) => {
+    e.preventDefault();
+    setQuoteSaving(true);
+    try {
+      const updated = await bookingService.submitRepairQuote(bookingId, quoteForm);
+      handleBookingUpdated(updated);
+      setQuoteOpenId(null);
+      setQuoteForm({ partsCost: '', laborCost: '', note: '' });
+    } catch (err) {
+      console.error('Failed to submit repair quote:', err);
+    } finally {
+      setQuoteSaving(false);
     }
   };
 
@@ -450,6 +482,12 @@ export default function TechnicianDashboard() {
                             <span className="rounded-full border border-amber-200 bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
                               Pending
                             </span>
+                            {job.isEmergency && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-0.5 text-[11px] font-bold uppercase text-white">
+                                <Zap className="h-3 w-3" />
+                                EMERGENCY
+                              </span>
+                            )}
                           </div>
 
                           <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-slate-600">
@@ -571,6 +609,101 @@ export default function TechnicianDashboard() {
                             <span className="font-semibold text-slate-800">Issue:</span>{' '}
                             {job.issueDescription}
                           </p>
+                          {job.issuePhoto && (
+                            <img
+                              src={job.issuePhoto}
+                              alt="Customer issue"
+                              className="h-16 w-24 rounded-lg border border-slate-200 object-cover"
+                            />
+                          )}
+
+                          {/* Live Quote Status & Inline Form */}
+                          {job.quote?.status === 'Pending' && (
+                            <div className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800">
+                              <Clock className="h-3.5 w-3.5" />
+                              Waiting for Customer Approval (Parts: Rs.{' '}
+                              {Number(job.quote.partsCost).toLocaleString()} + Labor: Rs.{' '}
+                              {Number(job.quote.laborCost).toLocaleString()})
+                            </div>
+                          )}
+
+                          {job.quote?.status === 'Approved' && (
+                            <div className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">
+                              Quote Approved &#10003; (Rs.{' '}
+                              {(
+                                (Number(job.quote.partsCost) || 0) +
+                                (Number(job.quote.laborCost) || 0)
+                              ).toLocaleString()}
+                              )
+                            </div>
+                          )}
+
+                          {job.quote?.status === 'Rejected' && (
+                            <div className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700">
+                              Quote Rejected by Customer
+                            </div>
+                          )}
+
+                          {quoteOpenId === job.id && (
+                            <form
+                              onSubmit={(e) => handleSubmitQuote(e, job.id)}
+                              className="mt-3 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4"
+                            >
+                              <p className="text-xs font-bold uppercase tracking-wide text-slate-700">
+                                Send Repair Quote
+                              </p>
+                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  required
+                                  placeholder="Parts Cost (LKR)"
+                                  value={quoteForm.partsCost}
+                                  onChange={(e) =>
+                                    setQuoteForm({ ...quoteForm, partsCost: e.target.value })
+                                  }
+                                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900"
+                                />
+                                <input
+                                  type="number"
+                                  min={0}
+                                  required
+                                  placeholder="Labor Cost (LKR)"
+                                  value={quoteForm.laborCost}
+                                  onChange={(e) =>
+                                    setQuoteForm({ ...quoteForm, laborCost: e.target.value })
+                                  }
+                                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900"
+                                />
+                              </div>
+                              <input
+                                type="text"
+                                required
+                                placeholder="Work note (e.g., Replace 32A MCB & wiring)"
+                                value={quoteForm.note}
+                                onChange={(e) =>
+                                  setQuoteForm({ ...quoteForm, note: e.target.value })
+                                }
+                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  type="submit"
+                                  disabled={quoteSaving}
+                                  className="rounded-lg bg-blue-700 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
+                                >
+                                  {quoteSaving ? 'Sending...' : 'Submit Quote'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setQuoteOpenId(null)}
+                                  className="rounded-lg border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </form>
+                          )}
                         </div>
 
                         <div className="flex shrink-0 flex-col items-start justify-between gap-4 border-t border-slate-100 pt-4 lg:items-end lg:border-t-0 lg:pt-0">
@@ -583,15 +716,44 @@ export default function TechnicianDashboard() {
                             </p>
                           </div>
 
-                          <button
-                            type="button"
-                            disabled={updatingBookingId === job.id}
-                            onClick={() => handleStatusChange(job.id, 'Completed')}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-800 disabled:opacity-60"
-                          >
-                            <CheckCircle2 className="h-4 w-4" />
-                            Mark as Completed
-                          </button>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setChatBooking(job)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3.5 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                            >
+                              <MessageSquare className="h-4 w-4" />
+                              Chat with Customer
+                            </button>
+
+                            {job.quote?.status !== 'Approved' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setQuoteOpenId(quoteOpenId === job.id ? null : job.id);
+                                  setQuoteForm({
+                                    partsCost: job.quote?.partsCost || '',
+                                    laborCost: job.quote?.laborCost || '',
+                                    note: job.quote?.note || '',
+                                  });
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+                              >
+                                <Receipt className="h-4 w-4" />
+                                Send Repair Quote
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              disabled={updatingBookingId === job.id}
+                              onClick={() => handleStatusChange(job.id, 'Completed')}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-800 disabled:opacity-60"
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                              Mark as Completed
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </article>
@@ -1032,6 +1194,15 @@ export default function TechnicianDashboard() {
           </>
         )}
       </div>
+
+      <BookingChatModal
+        isOpen={Boolean(chatBooking)}
+        booking={chatBooking}
+        currentUserRole="TECHNICIAN"
+        currentUserName={profileForm.name}
+        onClose={() => setChatBooking(null)}
+        onBookingUpdated={handleBookingUpdated}
+      />
     </div>
   );
 }

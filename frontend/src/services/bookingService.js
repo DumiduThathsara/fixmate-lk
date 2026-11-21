@@ -20,6 +20,19 @@ const INITIAL_SEED_BOOKINGS = [
     visitFee: 1500,
     status: 'Pending',
     hasReviewed: false,
+    isEmergency: true,
+    issuePhoto: null,
+    messages: [
+      {
+        id: 'msg-1',
+        senderRole: 'CUSTOMER',
+        senderName: 'Amaya Perera',
+        text: 'Water is dripping steadily under the kitchen sink. Please bring standard PVC fittings.',
+        timestamp: '2026-11-21T08:35:00Z',
+      },
+    ],
+    quote: { partsCost: 0, laborCost: 0, note: '', status: 'None' },
+    dispute: { isFlagged: false, reason: '', resolved: false },
     createdAt: '2026-11-21T08:30:00Z',
   },
   {
@@ -38,6 +51,24 @@ const INITIAL_SEED_BOOKINGS = [
     visitFee: 1800,
     status: 'Accepted',
     hasReviewed: false,
+    isEmergency: false,
+    issuePhoto: null,
+    messages: [
+      {
+        id: 'msg-2',
+        senderRole: 'TECHNICIAN',
+        senderName: 'Nimal Silva',
+        text: 'I will inspect the 32A MCB and load balance when I arrive at 2:00 PM.',
+        timestamp: '2026-11-20T15:00:00Z',
+      },
+    ],
+    quote: {
+      partsCost: 2200,
+      laborCost: 1500,
+      note: 'Replace faulty 32A Hager MCB and tighten neutral busbar connections.',
+      status: 'Pending',
+    },
+    dispute: { isFlagged: false, reason: '', resolved: false },
     createdAt: '2026-11-20T14:15:00Z',
   },
   {
@@ -56,6 +87,16 @@ const INITIAL_SEED_BOOKINGS = [
     visitFee: 2500,
     status: 'Completed',
     hasReviewed: false,
+    isEmergency: false,
+    issuePhoto: null,
+    messages: [],
+    quote: {
+      partsCost: 3000,
+      laborCost: 2000,
+      note: 'R32 refrigerant top-up and indoor coil chemical wash.',
+      status: 'Approved',
+    },
+    dispute: { isFlagged: false, reason: '', resolved: false },
     createdAt: '2026-11-12T10:00:00Z',
   },
   {
@@ -74,6 +115,11 @@ const INITIAL_SEED_BOOKINGS = [
     visitFee: 1500,
     status: 'Completed',
     hasReviewed: true,
+    isEmergency: false,
+    issuePhoto: null,
+    messages: [],
+    quote: { partsCost: 0, laborCost: 0, note: '', status: 'None' },
+    dispute: { isFlagged: false, reason: '', resolved: false },
     review: {
       rating: 5,
       comment: 'Punctual, neat workmanship, and completed the lock fitting smoothly.',
@@ -83,18 +129,45 @@ const INITIAL_SEED_BOOKINGS = [
   },
 ];
 
+function normalizeBooking(booking) {
+  return {
+    isEmergency: false,
+    issuePhoto: null,
+    messages: [],
+    quote: { partsCost: 0, laborCost: 0, note: '', status: 'None' },
+    dispute: { isFlagged: false, reason: '', resolved: false },
+    ...booking,
+    messages: Array.isArray(booking.messages) ? booking.messages : [],
+    quote: {
+      partsCost: 0,
+      laborCost: 0,
+      note: '',
+      status: 'None',
+      ...(booking.quote || {}),
+    },
+    dispute: {
+      isFlagged: false,
+      reason: '',
+      resolved: false,
+      ...(booking.dispute || {}),
+    },
+  };
+}
+
 function readStoredBookings() {
   try {
     const raw = localStorage.getItem(BOOKINGS_STORAGE_KEY);
     if (!raw) {
       localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(INITIAL_SEED_BOOKINGS));
-      return INITIAL_SEED_BOOKINGS;
+      return INITIAL_SEED_BOOKINGS.map(normalizeBooking);
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_SEED_BOOKINGS;
+    return Array.isArray(parsed)
+      ? parsed.map(normalizeBooking)
+      : INITIAL_SEED_BOOKINGS.map(normalizeBooking);
   } catch {
     localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(INITIAL_SEED_BOOKINGS));
-    return INITIAL_SEED_BOOKINGS;
+    return INITIAL_SEED_BOOKINGS.map(normalizeBooking);
   }
 }
 
@@ -125,6 +198,25 @@ export async function getCustomerBookings(customerId) {
 }
 
 /**
+ * Retrieve bookings for the technician portal.
+ */
+export async function getTechnicianBookings(technicianId) {
+  try {
+    if (USE_API) {
+      const { data } = await apiClient.get('/bookings/technician', {
+        params: technicianId ? { technicianId } : undefined,
+      });
+      return data;
+    }
+
+    return readStoredBookings();
+  } catch (error) {
+    console.error('Failed to fetch technician bookings:', error);
+    throw error;
+  }
+}
+
+/**
  * Create a new service booking.
  */
 export async function createBooking(bookingData) {
@@ -135,13 +227,13 @@ export async function createBooking(bookingData) {
     }
 
     const bookings = readStoredBookings();
-    const newBooking = {
+    const newBooking = normalizeBooking({
       id: `bk-${Date.now()}`,
       status: 'Pending',
       hasReviewed: false,
       createdAt: new Date().toISOString(),
       ...bookingData,
-    };
+    });
     const updated = [newBooking, ...bookings];
     writeStoredBookings(updated);
     return newBooking;
@@ -180,6 +272,47 @@ export async function cancelBooking(bookingId) {
     return updatedBooking;
   } catch (error) {
     console.error('Failed to cancel booking:', error);
+    throw error;
+  }
+}
+
+const ALLOWED_TECH_STATUSES = ['Accepted', 'Declined', 'Completed'];
+
+/**
+ * Update a booking's status from the Technician Portal (Accepted, Declined, Completed).
+ */
+export async function updateBookingStatus(bookingId, newStatus) {
+  if (!ALLOWED_TECH_STATUSES.includes(newStatus)) {
+    throw new Error(`Invalid status transition: ${newStatus}`);
+  }
+
+  try {
+    if (USE_API) {
+      const { data } = await apiClient.patch(`/bookings/${bookingId}/status`, {
+        status: newStatus,
+      });
+      return data;
+    }
+
+    const bookings = readStoredBookings();
+    let updatedBooking = null;
+
+    const nextBookings = bookings.map((booking) => {
+      if (booking.id === bookingId) {
+        updatedBooking = { ...booking, status: newStatus };
+        return updatedBooking;
+      }
+      return booking;
+    });
+
+    if (!updatedBooking) {
+      throw new Error('Booking not found.');
+    }
+
+    writeStoredBookings(nextBookings);
+    return updatedBooking;
+  } catch (error) {
+    console.error('Failed to update booking status:', error);
     throw error;
   }
 }
@@ -228,39 +361,21 @@ export async function submitReview(bookingId, { rating, comment }) {
   }
 }
 
-const ALLOWED_TECH_STATUSES = ['Accepted', 'Declined', 'Completed'];
-
 /**
- * Retrieve bookings for the technician portal.
+ * Append a chat message to an active booking.
  */
-export async function getTechnicianBookings(technicianId) {
-  try {
-    if (USE_API) {
-      const { data } = await apiClient.get('/bookings/technician', {
-        params: technicianId ? { technicianId } : undefined,
-      });
-      return data;
-    }
-
-    return readStoredBookings();
-  } catch (error) {
-    console.error('Failed to fetch technician bookings:', error);
-    throw error;
-  }
-}
-
-/**
- * Update a booking's status from the Technician Portal (Accepted, Declined, Completed).
- */
-export async function updateBookingStatus(bookingId, newStatus) {
-  if (!ALLOWED_TECH_STATUSES.includes(newStatus)) {
-    throw new Error(`Invalid status transition: ${newStatus}`);
+export async function sendBookingMessage(bookingId, { senderRole, senderName, text }) {
+  const cleanText = String(text || '').trim();
+  if (!cleanText) {
+    throw new Error('Message cannot be empty.');
   }
 
   try {
     if (USE_API) {
-      const { data } = await apiClient.patch(`/bookings/${bookingId}/status`, {
-        status: newStatus,
+      const { data } = await apiClient.post(`/bookings/${bookingId}/messages`, {
+        senderRole,
+        senderName,
+        text: cleanText,
       });
       return data;
     }
@@ -270,7 +385,17 @@ export async function updateBookingStatus(bookingId, newStatus) {
 
     const nextBookings = bookings.map((booking) => {
       if (booking.id === bookingId) {
-        updatedBooking = { ...booking, status: newStatus };
+        const newMessage = {
+          id: `msg-${Date.now()}`,
+          senderRole,
+          senderName,
+          text: cleanText,
+          timestamp: new Date().toISOString(),
+        };
+        updatedBooking = {
+          ...booking,
+          messages: [...(booking.messages || []), newMessage],
+        };
         return updatedBooking;
       }
       return booking;
@@ -283,7 +408,142 @@ export async function updateBookingStatus(bookingId, newStatus) {
     writeStoredBookings(nextBookings);
     return updatedBooking;
   } catch (error) {
-    console.error('Failed to update booking status:', error);
+    console.error('Failed to send booking message:', error);
+    throw error;
+  }
+}
+
+/**
+ * Submit a parts & labor repair quote from the Technician Portal.
+ */
+export async function submitRepairQuote(bookingId, { partsCost, laborCost, note }) {
+  try {
+    if (USE_API) {
+      const { data } = await apiClient.post(`/bookings/${bookingId}/quote`, {
+        partsCost,
+        laborCost,
+        note,
+      });
+      return data;
+    }
+
+    const bookings = readStoredBookings();
+    let updatedBooking = null;
+
+    const nextBookings = bookings.map((booking) => {
+      if (booking.id === bookingId) {
+        updatedBooking = {
+          ...booking,
+          quote: {
+            partsCost: Number(partsCost) || 0,
+            laborCost: Number(laborCost) || 0,
+            note: String(note || '').trim(),
+            status: 'Pending',
+          },
+        };
+        return updatedBooking;
+      }
+      return booking;
+    });
+
+    if (!updatedBooking) {
+      throw new Error('Booking not found.');
+    }
+
+    writeStoredBookings(nextBookings);
+    return updatedBooking;
+  } catch (error) {
+    console.error('Failed to submit repair quote:', error);
+    throw error;
+  }
+}
+
+/**
+ * Customer responds to a pending repair quote ('Approved' or 'Rejected').
+ */
+export async function respondToQuote(bookingId, decision) {
+  if (decision !== 'Approved' && decision !== 'Rejected') {
+    throw new Error('Invalid quote decision.');
+  }
+
+  try {
+    if (USE_API) {
+      const { data } = await apiClient.patch(`/bookings/${bookingId}/quote`, { decision });
+      return data;
+    }
+
+    const bookings = readStoredBookings();
+    let updatedBooking = null;
+
+    const nextBookings = bookings.map((booking) => {
+      if (booking.id === bookingId) {
+        updatedBooking = {
+          ...booking,
+          quote: {
+            ...(booking.quote || {}),
+            status: decision,
+          },
+        };
+        return updatedBooking;
+      }
+      return booking;
+    });
+
+    if (!updatedBooking) {
+      throw new Error('Booking not found.');
+    }
+
+    writeStoredBookings(nextBookings);
+    return updatedBooking;
+  } catch (error) {
+    console.error('Failed to respond to quote:', error);
+    throw error;
+  }
+}
+
+/**
+ * Flag a booking dispute for Admin review.
+ */
+export async function flagBookingDispute(bookingId, reason) {
+  const cleanReason = String(reason || '').trim();
+  if (!cleanReason) {
+    throw new Error('Please provide a reason for reporting this issue.');
+  }
+
+  try {
+    if (USE_API) {
+      const { data } = await apiClient.post(`/bookings/${bookingId}/dispute`, {
+        reason: cleanReason,
+      });
+      return data;
+    }
+
+    const bookings = readStoredBookings();
+    let updatedBooking = null;
+
+    const nextBookings = bookings.map((booking) => {
+      if (booking.id === bookingId) {
+        updatedBooking = {
+          ...booking,
+          dispute: {
+            isFlagged: true,
+            reason: cleanReason,
+            resolved: false,
+          },
+        };
+        return updatedBooking;
+      }
+      return booking;
+    });
+
+    if (!updatedBooking) {
+      throw new Error('Booking not found.');
+    }
+
+    writeStoredBookings(nextBookings);
+    return updatedBooking;
+  } catch (error) {
+    console.error('Failed to flag booking dispute:', error);
     throw error;
   }
 }
@@ -295,6 +555,10 @@ const bookingService = {
   cancelBooking,
   updateBookingStatus,
   submitReview,
+  sendBookingMessage,
+  submitRepairQuote,
+  respondToQuote,
+  flagBookingDispute,
 };
 
 export default bookingService;

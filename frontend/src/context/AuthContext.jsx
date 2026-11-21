@@ -37,6 +37,12 @@ export function AuthProvider({ children }) {
     return updated;
   };
 
+  const updateProfile = async (updatedFields) => {
+    const updated = await authService.updateUserProfile(updatedFields);
+    setUser(updated);
+    return updated;
+  };
+
   const value = {
     user,
     role: user?.role ?? null,
@@ -46,6 +52,7 @@ export function AuthProvider({ children }) {
     adminLogin,
     logout,
     updateUser,
+    updateProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

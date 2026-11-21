@@ -3,6 +3,7 @@ import Footer from './components/Footer';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
+import AdminDashboard from './pages/AdminDashboard';
 import AdminLogin from './pages/AdminLogin';
 import Auth from './pages/Auth';
 import CustomerDashboard from './pages/CustomerDashboard';
@@ -63,11 +64,7 @@ function App() {
                 path="/admin/dashboard"
                 element={
                   <ProtectedRoute allowedRoles={['ADMIN']}>
-                    <ComingSoon
-                      title="Admin Dashboard"
-                      sprint="Admin Portal"
-                      description="Manage platform users, technician verifications, and system oversight."
-                    />
+                    <AdminDashboard />
                   </ProtectedRoute>
                 }
               />

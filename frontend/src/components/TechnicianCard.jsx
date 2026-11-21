@@ -26,11 +26,18 @@ export default function TechnicianCard({ technician }) {
     verified,
     available = true,
     avatar,
+    distanceKm,
+    isBestMatch,
   } = technician;
 
   return (
-    <article className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg">
+    <article className="relative flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg">
       <div>
+        {isBestMatch && (
+          <span className="mb-3 inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-800">
+            &#9733; Best Match
+          </span>
+        )}
         <div className="flex items-start gap-3.5">
           {avatar && !imgError ? (
             <img
@@ -86,7 +93,10 @@ export default function TechnicianCard({ technician }) {
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
           <div className="flex items-center gap-1">
             <MapPin className="h-4 w-4 text-slate-400" />
-            <span>{district}</span>
+            <span>
+              {district}
+              {distanceKm ? ` • ${distanceKm} km away` : ''}
+            </span>
           </div>
 
           <div className="flex items-center gap-1">

@@ -219,6 +219,47 @@ export function updateCurrentUser(partialUser) {
   return updated;
 }
 
+/**
+ * Async profile update for the logged-in user (customer or technician).
+ */
+export async function updateUserProfile(updatedFields) {
+  if (USE_API) {
+    const { data } = await apiClient.put('/users/profile', updatedFields);
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (token) {
+      persistSession(token, data);
+    }
+    return data;
+  }
+
+  const current = getCurrentUser();
+  if (!current) {
+    throw new Error('No active user session found.');
+  }
+
+  const sanitized = {
+    ...(updatedFields.name !== undefined ? { name: String(updatedFields.name).trim() } : {}),
+    ...(updatedFields.phone !== undefined ? { phone: String(updatedFields.phone).trim() } : {}),
+    ...(updatedFields.district !== undefined ? { district: updatedFields.district } : {}),
+    ...(updatedFields.address !== undefined ? { address: String(updatedFields.address).trim() } : {}),
+    ...(updatedFields.avatar !== undefined ? { avatar: updatedFields.avatar } : {}),
+  };
+
+  const updated = { ...current, ...sanitized };
+  localStorage.setItem(USER_KEY, JSON.stringify(updated));
+
+  // Keep mock registry in sync if user registered in mock mode
+  const registry = getMockRegistry();
+  if (current.email && registry.some((u) => u.email.toLowerCase() === current.email.toLowerCase())) {
+    const nextRegistry = registry.map((u) =>
+      u.email.toLowerCase() === current.email.toLowerCase() ? { ...u, ...sanitized } : u
+    );
+    saveMockRegistry(nextRegistry);
+  }
+
+  return updated;
+}
+
 const authService = {
   loginCustomerOrTech,
   registerUser,
@@ -226,6 +267,7 @@ const authService = {
   logout,
   getCurrentUser,
   updateCurrentUser,
+  updateUserProfile,
 };
 
 export default authService;

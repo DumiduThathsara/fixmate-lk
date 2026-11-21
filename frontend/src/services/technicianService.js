@@ -4,13 +4,17 @@ import { MOCK_TECHNICIANS, SERVICE_CATEGORIES } from '../data/mockData';
 const USE_API = import.meta.env.VITE_ENABLE_API === 'true';
 const TECHNICIANS_STORAGE_KEY = 'fixmate_technicians';
 
-function normalizeTechnician(tech) {
+function normalizeTechnician(tech, index = 0) {
+  const deterministicKm = Number((1.4 + ((index * 7) % 45) / 10).toFixed(1));
+  const rating = Number(tech.rating || 4.8);
   return {
     available: true,
     verified: true,
     workingHours: '8:00 AM - 6:00 PM (Mon - Sat)',
     skills: [tech.category, 'Diagnostics', 'Preventive Maintenance'],
     phone: '077 456 7890',
+    distanceKm: tech.distanceKm ?? deterministicKm,
+    isBestMatch: tech.verified !== false && rating >= 4.8,
     ...tech,
   };
 }
@@ -84,6 +88,7 @@ export async function searchTechnicians({
   district = 'All',
   minRating = 0,
   maxFee = 5000,
+  urgentOnly = false,
   sortBy = 'rating_desc',
   page = 1,
   limit = 6,
@@ -91,13 +96,15 @@ export async function searchTechnicians({
   try {
     if (USE_API) {
       const { data } = await apiClient.get('/technicians', {
-        params: { search, category, district, minRating, maxFee, sortBy, page, limit },
+        params: { search, category, district, minRating, maxFee, urgentOnly, sortBy, page, limit },
       });
       return data;
     }
 
     const query = search.trim().toLowerCase();
     const filtered = readStoredTechnicians().filter((tech) => {
+      if (tech.rejected) return false;
+      if (urgentOnly && !tech.available) return false;
       if (query) {
         const matchesSkills =
           Array.isArray(tech.skills) &&

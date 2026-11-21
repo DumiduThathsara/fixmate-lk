@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, RotateCcw, Search, SlidersHorizontal, Star } from 'lucide-react';
+import {
+  CheckCircle2,
+  RotateCcw,
+  Search,
+  SlidersHorizontal,
+  Sparkles,
+  Star,
+  Zap,
+} from 'lucide-react';
+import AiDiagnosisModal from '../components/AiDiagnosisModal';
 import Pagination from '../components/Pagination';
 import TechnicianCard from '../components/TechnicianCard';
 import { SRI_LANKA_DISTRICTS } from '../constants/districts';
@@ -21,6 +30,7 @@ export default function FindTechnicians() {
 
   const [categories, setCategories] = useState([]);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
 
   // Filter & pagination state initialized from URL query params
   const [search, setSearch] = useState('');
@@ -28,6 +38,7 @@ export default function FindTechnicians() {
   const [district, setDistrict] = useState(() => searchParams.get('district') || 'All');
   const [minRating, setMinRating] = useState(0);
   const [maxFee, setMaxFee] = useState(DEFAULT_MAX_FEE);
+  const [urgentOnly, setUrgentOnly] = useState(() => searchParams.get('urgent') === 'true');
   const [sortBy, setSortBy] = useState('rating_desc');
   const [page, setPage] = useState(1);
 
@@ -44,8 +55,10 @@ export default function FindTechnicians() {
   useEffect(() => {
     const paramCategory = searchParams.get('category') || 'All';
     const paramDistrict = searchParams.get('district') || 'All';
+    const paramUrgent = searchParams.get('urgent') === 'true';
     setCategory(paramCategory);
     setDistrict(paramDistrict);
+    setUrgentOnly(paramUrgent);
     setPage(1);
   }, [searchParams]);
 
@@ -75,6 +88,7 @@ export default function FindTechnicians() {
         district,
         minRating,
         maxFee,
+        urgentOnly,
         sortBy,
         page,
         limit: PAGE_LIMIT,
@@ -94,7 +108,7 @@ export default function FindTechnicians() {
     return () => {
       active = false;
     };
-  }, [search, category, district, minRating, maxFee, sortBy, page]);
+  }, [search, category, district, minRating, maxFee, urgentOnly, sortBy, page]);
 
   const handleResetFilters = () => {
     setSearch('');
@@ -102,6 +116,7 @@ export default function FindTechnicians() {
     setDistrict('All');
     setMinRating(0);
     setMaxFee(DEFAULT_MAX_FEE);
+    setUrgentOnly(false);
     setSortBy('rating_desc');
     setPage(1);
   };
@@ -150,7 +165,7 @@ export default function FindTechnicians() {
             Lanka.
           </p>
 
-          <div className="mt-5 flex flex-wrap gap-3">
+          <div className="mt-5 flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-slate-200 backdrop-blur-sm">
               <CheckCircle2 className="h-3.5 w-3.5 text-amber-400" />
               Background Checked
@@ -163,6 +178,14 @@ export default function FindTechnicians() {
               <CheckCircle2 className="h-3.5 w-3.5 text-amber-400" />
               Instant Online Booking
             </span>
+            <button
+              type="button"
+              onClick={() => setAiModalOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-500/20 px-3.5 py-1 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/30"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              AI Issue Helper
+            </button>
           </div>
         </div>
       </section>
@@ -325,6 +348,25 @@ export default function FindTechnicians() {
                 <span>Rs. 5,000</span>
               </div>
             </div>
+
+            {/* Emergency Dispatch Toggle */}
+            <div className="border-t border-slate-100 pt-4">
+              <label className="flex cursor-pointer items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50/70 p-3">
+                <span className="flex items-center gap-2 text-xs font-semibold text-red-800">
+                  <Zap className="h-4 w-4 text-red-600" />
+                  Emergency Dispatch (Within 2 Hrs)
+                </span>
+                <input
+                  type="checkbox"
+                  checked={urgentOnly}
+                  onChange={(e) => {
+                    setUrgentOnly(e.target.checked);
+                    setPage(1);
+                  }}
+                  className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-600"
+                />
+              </label>
+            </div>
           </div>
         </aside>
 
@@ -415,6 +457,8 @@ export default function FindTechnicians() {
         </div>
       </div>
       </div>
+
+      <AiDiagnosisModal isOpen={aiModalOpen} onClose={() => setAiModalOpen(false)} />
     </div>
   );
 }

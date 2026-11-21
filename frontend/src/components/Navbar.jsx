@@ -68,7 +68,14 @@ export default function Navbar() {
         <div className="hidden items-center gap-3 md:flex">
           {isAuthenticated ? (
             <>
-              <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
+              <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5">
+                {user?.avatar && (
+                  <img
+                    src={user.avatar}
+                    alt={user.name}
+                    className="h-7 w-7 rounded-full border border-slate-200 object-cover"
+                  />
+                )}
                 <span className="max-w-[140px] truncate text-sm font-medium text-slate-800">
                   {user?.name}
                 </span>
@@ -133,9 +140,18 @@ export default function Navbar() {
               {isAuthenticated ? (
                 <div className="space-y-2 border-t border-slate-100 pt-2">
                   <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-                    <span className="truncate text-sm font-medium text-slate-800">
-                      {user?.name}
-                    </span>
+                    <div className="flex min-w-0 items-center gap-2">
+                      {user?.avatar && (
+                        <img
+                          src={user.avatar}
+                          alt={user.name}
+                          className="h-7 w-7 shrink-0 rounded-full border border-slate-200 object-cover"
+                        />
+                      )}
+                      <span className="truncate text-sm font-medium text-slate-800">
+                        {user?.name}
+                      </span>
+                    </div>
                     <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-blue-700">
                       {role}
                     </span>
