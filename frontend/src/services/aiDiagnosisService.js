@@ -1,19 +1,25 @@
 import apiClient from './apiClient';
 
-export async function diagnoseIssue(descriptionText = '', hasImage = false) {
-  const text = String(descriptionText || '').trim();
-  if (!text) {
+export async function diagnoseIssue(input, legacyHasImage = false) {
+  const isObj = typeof input === 'object' && input !== null;
+  const description = String(isObj ? input.description || '' : input || '').trim();
+  const imageBase64 = isObj ? input.imageBase64 || null : null;
+  const mimeType = isObj ? input.mimeType || null : null;
+  const hasImage = Boolean(imageBase64) || Boolean(isObj ? input.hasImage : legacyHasImage);
+
+  if (!description) {
     throw new Error('Please describe your issue so we can analyze it.');
   }
 
   try {
     const { data } = await apiClient.post('/ai/diagnose', {
-      description: text,
-      hasImage: Boolean(hasImage),
+      description,
+      hasImage,
+      imageBase64,
+      mimeType,
     });
     return data;
   } catch {
-    // Safe fallback if backend AI endpoint is temporarily unreachable
     return {
       detectedCategory: 'Plumbing',
       confidence: 74,
