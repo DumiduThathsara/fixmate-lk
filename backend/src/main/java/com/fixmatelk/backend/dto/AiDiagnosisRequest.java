@@ -9,4 +9,6 @@ public class AiDiagnosisRequest {
     private String description;
 
     private Boolean hasImage = false;
+    private String imageBase64;
+    private String mimeType;
 }
