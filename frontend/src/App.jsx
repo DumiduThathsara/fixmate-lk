@@ -5,6 +5,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import AdminLogin from './pages/AdminLogin';
 import Auth from './pages/Auth';
+import FindTechnicians from './pages/FindTechnicians';
+import Home from './pages/Home';
 
 function ComingSoon({ title, sprint, description }) {
   return (
@@ -33,28 +35,10 @@ function App() {
           <Navbar />
           <main className="flex-grow">
             <Routes>
-              <Route
-                path="/"
-                element={
-                  <ComingSoon
-                    title="FixMate LK Home"
-                    sprint="Sprint 1"
-                    description="Landing page, service categories, and quick technician search."
-                  />
-                }
-              />
+              <Route path="/" element={<Home />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/admin/login" element={<AdminLogin />} />
-              <Route
-                path="/technicians"
-                element={
-                  <ComingSoon
-                    title="Find Technicians"
-                    sprint="Sprint 2"
-                    description="Search, filter, and browse verified technicians across Sri Lanka."
-                  />
-                }
-              />
+              <Route path="/technicians" element={<FindTechnicians />} />
               <Route
                 path="/technicians/:id"
                 element={
