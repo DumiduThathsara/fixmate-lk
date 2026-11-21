@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import AdminLogin from './pages/AdminLogin';
 import Auth from './pages/Auth';
+import CustomerDashboard from './pages/CustomerDashboard';
 import FindTechnicians from './pages/FindTechnicians';
 import Home from './pages/Home';
 
@@ -53,11 +54,7 @@ function App() {
                 path="/customer/dashboard"
                 element={
                   <ProtectedRoute allowedRoles={['CUSTOMER']}>
-                    <ComingSoon
-                      title="Customer Portal"
-                      sprint="Sprint 3"
-                      description="Manage service requests, active bookings, and technician reviews."
-                    />
+                    <CustomerDashboard />
                   </ProtectedRoute>
                 }
               />
