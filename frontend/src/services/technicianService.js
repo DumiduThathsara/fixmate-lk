@@ -3,6 +3,7 @@ import { MOCK_TECHNICIANS, SERVICE_CATEGORIES } from '../data/mockData';
 
 const USE_API = import.meta.env.VITE_ENABLE_API === 'true';
 const TECHNICIANS_STORAGE_KEY = 'fixmate_technicians';
+const SAVED_TECHNICIANS_KEY = 'fixmate_saved_technicians';
 
 function normalizeTechnician(tech, index = 0) {
   const deterministicKm = Number((1.4 + ((index * 7) % 45) / 10).toFixed(1));
@@ -321,6 +322,40 @@ export async function updateTechnicianProfile(id, updatedFields) {
   }
 }
 
+/**
+ * Get saved/bookmarked technician IDs.
+ */
+export function getSavedTechnicianIds() {
+  try {
+    const raw = localStorage.getItem(SAVED_TECHNICIANS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Toggle a technician ID in saved/bookmarked pros.
+ */
+export async function toggleSavedTechnician(techId) {
+  const current = getSavedTechnicianIds();
+  const exists = current.includes(techId);
+  const next = exists ? current.filter((id) => id !== techId) : [...current, techId];
+  localStorage.setItem(SAVED_TECHNICIANS_KEY, JSON.stringify(next));
+  return { savedIds: next, isSaved: !exists };
+}
+
+/**
+ * Retrieve full technician objects for all saved/bookmarked IDs.
+ */
+export async function getSavedTechnicians() {
+  const savedIds = getSavedTechnicianIds();
+  if (savedIds.length === 0) return [];
+  const all = readStoredTechnicians();
+  return all.filter((t) => savedIds.includes(t.id) && !t.rejected);
+}
+
 const technicianService = {
   getCategories,
   getFeaturedTechnicians,
@@ -329,6 +364,9 @@ const technicianService = {
   getTechnicianByEmailOrUser,
   updateTechnicianAvailability,
   updateTechnicianProfile,
+  getSavedTechnicianIds,
+  toggleSavedTechnician,
+  getSavedTechnicians,
 };
 
 export default technicianService;

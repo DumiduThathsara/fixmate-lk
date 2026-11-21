@@ -50,6 +50,7 @@ const INITIAL_SEED_BOOKINGS = [
     issueDescription: 'Main distribution breaker trips intermittently when AC is turned on.',
     visitFee: 1800,
     status: 'Accepted',
+    startOtp: '4829',
     hasReviewed: false,
     isEmergency: false,
     issuePhoto: null,
@@ -129,10 +130,15 @@ const INITIAL_SEED_BOOKINGS = [
   },
 ];
 
+function generateOtp() {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
 function normalizeBooking(booking) {
   return {
     isEmergency: false,
     issuePhoto: null,
+    startOtp: booking.startOtp || '4829',
     messages: [],
     quote: { partsCost: 0, laborCost: 0, note: '', status: 'None' },
     dispute: { isFlagged: false, reason: '', resolved: false },
@@ -230,6 +236,7 @@ export async function createBooking(bookingData) {
     const newBooking = normalizeBooking({
       id: `bk-${Date.now()}`,
       status: 'Pending',
+      startOtp: generateOtp(),
       hasReviewed: false,
       createdAt: new Date().toISOString(),
       ...bookingData,
@@ -276,7 +283,7 @@ export async function cancelBooking(bookingId) {
   }
 }
 
-const ALLOWED_TECH_STATUSES = ['Accepted', 'Declined', 'Completed'];
+const ALLOWED_TECH_STATUSES = ['Accepted', 'Declined', 'In Progress', 'Completed'];
 
 /**
  * Update a booking's status from the Technician Portal (Accepted, Declined, Completed).
@@ -548,6 +555,80 @@ export async function flagBookingDispute(bookingId, reason) {
   }
 }
 
+/**
+ * Verify the 4-digit customer PIN and transition an Accepted job to 'In Progress'.
+ */
+export async function verifyStartOtpAndBeginJob(bookingId, enteredOtp) {
+  const cleanOtp = String(enteredOtp || '').trim();
+  if (!/^\d{4}$/.test(cleanOtp)) {
+    throw new Error('Invalid 4-digit Customer PIN');
+  }
+
+  if (USE_API) {
+    const { data } = await apiClient.post(`/bookings/${bookingId}/verify-otp`, {
+      otp: cleanOtp,
+    });
+    return data;
+  }
+
+  const bookings = readStoredBookings();
+  const target = bookings.find((b) => b.id === bookingId);
+  if (!target) {
+    throw new Error('Booking not found.');
+  }
+
+  if (String(target.startOtp) !== cleanOtp) {
+    throw new Error('Invalid 4-digit Customer PIN');
+  }
+
+  let updatedBooking = null;
+  const nextBookings = bookings.map((b) => {
+    if (b.id === bookingId) {
+      updatedBooking = { ...b, status: 'In Progress' };
+      return updatedBooking;
+    }
+    return b;
+  });
+
+  writeStoredBookings(nextBookings);
+  return updatedBooking;
+}
+
+/**
+ * Validate promo codes ('FIRST500' -> Rs. 500 off, 'FIX10' -> 10% off).
+ */
+export function validatePromoCode(code, baseAmount = 1500) {
+  const normalized = String(code || '').trim().toUpperCase();
+  const amount = Math.max(0, Number(baseAmount) || 0);
+
+  if (normalized === 'FIRST500') {
+    const discountAmount = Math.min(500, amount);
+    return {
+      valid: true,
+      code: 'FIRST500',
+      discountAmount,
+      label: 'Rs. 500 First Booking Discount',
+    };
+  }
+
+  if (normalized === 'FIX10') {
+    const discountAmount = Math.round(amount * 0.1);
+    return {
+      valid: true,
+      code: 'FIX10',
+      discountAmount,
+      label: '10% FixMate Loyalty Discount',
+    };
+  }
+
+  return {
+    valid: false,
+    code: normalized,
+    discountAmount: 0,
+    label: 'Invalid or expired promo code.',
+  };
+}
+
 const bookingService = {
   getCustomerBookings,
   getTechnicianBookings,
@@ -559,6 +640,8 @@ const bookingService = {
   submitRepairQuote,
   respondToQuote,
   flagBookingDispute,
+  verifyStartOtpAndBeginJob,
+  validatePromoCode,
 };
 
 export default bookingService;

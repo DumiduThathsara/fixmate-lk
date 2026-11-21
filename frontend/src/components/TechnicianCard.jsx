@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, MapPin, Star } from 'lucide-react';
+import { CheckCircle2, Heart, MapPin, Star } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
+import technicianService from '../services/technicianService';
 
 function getInitials(name = '') {
   return name
@@ -11,8 +13,12 @@ function getInitials(name = '') {
     .join('');
 }
 
-export default function TechnicianCard({ technician }) {
+export default function TechnicianCard({ technician, onBookmarkChange }) {
   const [imgError, setImgError] = useState(false);
+  const { showToast } = useToast();
+  const [isSaved, setIsSaved] = useState(() =>
+    technicianService.getSavedTechnicianIds().includes(technician.id)
+  );
 
   const {
     id,
@@ -30,14 +36,40 @@ export default function TechnicianCard({ technician }) {
     isBestMatch,
   } = technician;
 
+  const handleToggleSave = async () => {
+    const res = await technicianService.toggleSavedTechnician(id);
+    setIsSaved(res.isSaved);
+    showToast(
+      res.isSaved ? `Saved ${name} to your favorite pros.` : `Removed ${name} from saved pros.`,
+      res.isSaved ? 'success' : 'info'
+    );
+    if (onBookmarkChange) {
+      onBookmarkChange(id, res.isSaved);
+    }
+  };
+
   return (
     <article className="relative flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg">
       <div>
-        {isBestMatch && (
-          <span className="mb-3 inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-800">
-            &#9733; Best Match
-          </span>
-        )}
+        <div className="mb-2 flex min-h-[1.5rem] items-center justify-between gap-2">
+          <div>
+            {isBestMatch && (
+              <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-800">
+                &#9733; Best Match
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={handleToggleSave}
+            aria-label={isSaved ? `Remove ${name} from saved` : `Save ${name}`}
+            className="rounded-full p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+          >
+            <Heart
+              className={`h-4 w-4 ${isSaved ? 'fill-red-500 text-red-500' : ''}`}
+            />
+          </button>
+        </div>
         <div className="flex items-start gap-3.5">
           {avatar && !imgError ? (
             <img

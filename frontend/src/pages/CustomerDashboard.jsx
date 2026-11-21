@@ -10,6 +10,8 @@ import {
   Edit3,
   FileText,
   Flag,
+  Heart,
+  KeyRound,
   MapPin,
   MessageSquare,
   Phone,
@@ -25,9 +27,12 @@ import {
 import BookingChatModal from '../components/BookingChatModal';
 import InvoiceModal from '../components/InvoiceModal';
 import ReviewModal from '../components/ReviewModal';
+import TechnicianCard from '../components/TechnicianCard';
 import { SRI_LANKA_DISTRICTS } from '../constants/districts';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import bookingService from '../services/bookingService';
+import technicianService from '../services/technicianService';
 
 const FILTER_TABS = [
   { id: 'All', label: 'All' },
@@ -39,6 +44,7 @@ const FILTER_TABS = [
 const STATUS_BADGE_STYLES = {
   Pending: 'border-amber-200 bg-amber-100 text-amber-800',
   Accepted: 'border-blue-200 bg-blue-100 text-blue-800',
+  'In Progress': 'border-indigo-200 bg-indigo-100 text-indigo-800',
   Completed: 'border-emerald-200 bg-emerald-100 text-emerald-800',
   Cancelled: 'border-red-200 bg-red-100 text-red-800',
 };
@@ -56,10 +62,12 @@ function getInitials(name = '') {
 
 export default function CustomerDashboard() {
   const { user, updateProfile } = useAuth();
+  const { showToast } = useToast();
   const fileInputRef = useRef(null);
 
-  const [viewMode, setViewMode] = useState('bookings'); // 'bookings' | 'profile'
+  const [viewMode, setViewMode] = useState('bookings'); // 'bookings' | 'saved' | 'profile'
   const [bookings, setBookings] = useState([]);
+  const [savedTechnicians, setSavedTechnicians] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('All');
   const [confirmCancelId, setConfirmCancelId] = useState(null);
@@ -97,10 +105,15 @@ export default function CustomerDashboard() {
     let active = true;
     setLoading(true);
 
-    bookingService
-      .getCustomerBookings(user?.id)
-      .then((data) => {
-        if (active) setBookings(data);
+    Promise.all([
+      bookingService.getCustomerBookings(user?.id),
+      technicianService.getSavedTechnicians(),
+    ])
+      .then(([bookingData, savedList]) => {
+        if (active) {
+          setBookings(bookingData);
+          setSavedTechnicians(savedList);
+        }
       })
       .catch((err) => console.error('Failed to load bookings:', err))
       .finally(() => {
@@ -118,8 +131,10 @@ export default function CustomerDashboard() {
       const updated = await bookingService.cancelBooking(bookingId);
       setBookings((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
       setConfirmCancelId(null);
+      showToast('Booking request cancelled.', 'info');
     } catch (err) {
       console.error('Error cancelling booking:', err);
+      showToast('Unable to cancel booking.', 'error');
     } finally {
       setCancellingId(null);
     }
@@ -209,6 +224,7 @@ export default function CustomerDashboard() {
         avatar: profileForm.avatar,
       });
       setProfileSuccessMsg('Profile updated successfully!');
+      showToast('Profile updated successfully!', 'success');
       setTimeout(() => setProfileSuccessMsg(''), 4000);
     } catch (err) {
       console.error('Failed to update customer profile:', err);
@@ -219,7 +235,7 @@ export default function CustomerDashboard() {
 
   const totalBookings = bookings.length;
   const activeCount = bookings.filter(
-    (b) => b.status === 'Pending' || b.status === 'Accepted'
+    (b) => b.status === 'Pending' || b.status === 'Accepted' || b.status === 'In Progress'
   ).length;
   const completedBookings = bookings.filter((b) => b.status === 'Completed');
   const completedCount = completedBookings.length;
@@ -228,7 +244,11 @@ export default function CustomerDashboard() {
   const filteredBookings = bookings.filter((booking) => {
     if (activeTab === 'All') return true;
     if (activeTab === 'Active') {
-      return booking.status === 'Pending' || booking.status === 'Accepted';
+      return (
+        booking.status === 'Pending' ||
+        booking.status === 'Accepted' ||
+        booking.status === 'In Progress'
+      );
     }
     return booking.status === activeTab;
   });
@@ -304,7 +324,7 @@ export default function CustomerDashboard() {
       </div>
 
       {/* Top-Level View Switcher */}
-      <div className="mt-6 flex gap-2 border-b border-slate-200 pb-4">
+      <div className="mt-6 flex flex-wrap gap-2 border-b border-slate-200 pb-4">
         <button
           type="button"
           onClick={() => setViewMode('bookings')}
@@ -316,6 +336,28 @@ export default function CustomerDashboard() {
         >
           <ClipboardList className="h-4 w-4" />
           My Bookings
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setViewMode('saved');
+            technicianService.getSavedTechnicians().then(setSavedTechnicians);
+          }}
+          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+            viewMode === 'saved'
+              ? 'bg-blue-700 text-white shadow-sm'
+              : 'bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+        >
+          <Heart className="h-4 w-4" />
+          Saved Pros
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs ${
+              viewMode === 'saved' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
+            }`}
+          >
+            {savedTechnicians.length}
+          </span>
         </button>
         <button
           type="button"
@@ -501,6 +543,24 @@ export default function CustomerDashboard() {
                           </div>
                         )}
 
+                        {/* 4-Digit Job Start PIN Box on Accepted Bookings */}
+                        {booking.status === 'Accepted' && booking.startOtp && (
+                          <div className="mt-2 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+                            <KeyRound className="h-5 w-5 shrink-0 text-blue-700" />
+                            <div>
+                              <p className="text-sm font-bold text-blue-900">
+                                Job Start PIN:{' '}
+                                <span className="ml-1 rounded bg-white px-2 py-0.5 font-mono tracking-widest text-blue-700 shadow-xs">
+                                  {booking.startOtp}
+                                </span>
+                              </p>
+                              <p className="text-xs text-blue-700">
+                                Share this 4-digit code with your technician when they arrive
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Pending Repair Estimate Card */}
                         {booking.quote?.status === 'Pending' && (
                           <div className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-4">
@@ -606,7 +666,9 @@ export default function CustomerDashboard() {
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
-                          {(booking.status === 'Pending' || booking.status === 'Accepted') && (
+                          {(booking.status === 'Pending' ||
+                            booking.status === 'Accepted' ||
+                            booking.status === 'In Progress') && (
                             <button
                               type="button"
                               onClick={() => setChatBooking(booking)}
@@ -702,6 +764,39 @@ export default function CustomerDashboard() {
             )}
           </div>
         </>
+      ) : viewMode === 'saved' ? (
+        /* Saved Pros View */
+        <div className="mt-8">
+          {savedTechnicians.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
+              <Heart className="h-10 w-10 text-slate-300" />
+              <h3 className="mt-4 text-lg font-bold text-slate-900">No saved technicians yet</h3>
+              <p className="mt-1 max-w-md text-sm text-slate-500">
+                Tap the heart icon on any technician card to bookmark them here for quick re-booking.
+              </p>
+              <Link
+                to="/technicians"
+                className="mt-6 inline-flex items-center gap-2 rounded-lg bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-800"
+              >
+                Explore Technicians
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {savedTechnicians.map((tech) => (
+                <TechnicianCard
+                  key={tech.id}
+                  technician={tech}
+                  onBookmarkChange={(removedId, isSaved) => {
+                    if (!isSaved) {
+                      setSavedTechnicians((prev) => prev.filter((t) => t.id !== removedId));
+                    }
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       ) : (
         /* My Profile & Settings View */
         <div className="mt-8 max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">

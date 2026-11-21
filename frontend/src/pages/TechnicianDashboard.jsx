@@ -8,6 +8,7 @@ import {
   Clock,
   Edit3,
   Inbox,
+  KeyRound,
   MapPin,
   MessageSquare,
   Phone,
@@ -24,6 +25,7 @@ import BookingChatModal from '../components/BookingChatModal';
 import TechnicianCard from '../components/TechnicianCard';
 import { SRI_LANKA_DISTRICTS } from '../constants/districts';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import bookingService from '../services/bookingService';
 import technicianService from '../services/technicianService';
 
@@ -52,6 +54,7 @@ function getInitials(name = '') {
 
 export default function TechnicianDashboard() {
   const { user, updateUser } = useAuth();
+  const { showToast } = useToast();
   const fileInputRef = useRef(null);
 
   const [bookings, setBookings] = useState([]);
@@ -63,6 +66,10 @@ export default function TechnicianDashboard() {
   const [quoteOpenId, setQuoteOpenId] = useState(null);
   const [quoteForm, setQuoteForm] = useState({ partsCost: '', laborCost: '', note: '' });
   const [quoteSaving, setQuoteSaving] = useState(false);
+  const [otpOpenId, setOtpOpenId] = useState(null);
+  const [otpInput, setOtpInput] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [otpVerifying, setOtpVerifying] = useState(false);
 
   // Technician Profile & Availability state
   const [techId, setTechId] = useState(user?.id || 'tech-1');
@@ -266,8 +273,28 @@ export default function TechnicianDashboard() {
     }
   };
 
+  const handleVerifyOtp = async (e, bookingId) => {
+    e.preventDefault();
+    setOtpError('');
+    setOtpVerifying(true);
+    try {
+      const updated = await bookingService.verifyStartOtpAndBeginJob(bookingId, otpInput);
+      handleBookingUpdated(updated);
+      setOtpOpenId(null);
+      setOtpInput('');
+      showToast('PIN verified! Job is now In Progress.', 'success');
+    } catch (err) {
+      setOtpError(err.message || 'Invalid 4-digit Customer PIN');
+      showToast(err.message || 'Invalid 4-digit Customer PIN', 'error');
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
+
   const pendingJobs = bookings.filter((b) => b.status === 'Pending');
-  const activeJobs = bookings.filter((b) => b.status === 'Accepted');
+  const activeJobs = bookings.filter(
+    (b) => b.status === 'Accepted' || b.status === 'In Progress'
+  );
   const completedJobs = bookings.filter((b) => b.status === 'Completed');
   const historyJobs = bookings.filter(
     (b) => b.status === 'Completed' || b.status === 'Declined'
@@ -578,9 +605,21 @@ export default function TechnicianDashboard() {
                             <h2 className="text-lg font-bold text-slate-900">
                               {job.customerName || 'Customer'}
                             </h2>
-                            <span className="rounded-full border border-blue-200 bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800">
-                              Accepted
+                            <span
+                              className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                                job.status === 'In Progress'
+                                  ? 'border-indigo-200 bg-indigo-100 text-indigo-800'
+                                  : 'border-blue-200 bg-blue-100 text-blue-800'
+                              }`}
+                            >
+                              {job.status}
                             </span>
+                            {job.isEmergency && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-0.5 text-[11px] font-bold uppercase text-white">
+                                <Zap className="h-3 w-3" />
+                                EMERGENCY
+                              </span>
+                            )}
                           </div>
 
                           <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-slate-600">
@@ -744,16 +783,65 @@ export default function TechnicianDashboard() {
                               </button>
                             )}
 
-                            <button
-                              type="button"
-                              disabled={updatingBookingId === job.id}
-                              onClick={() => handleStatusChange(job.id, 'Completed')}
-                              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-800 disabled:opacity-60"
-                            >
-                              <CheckCircle2 className="h-4 w-4" />
-                              Mark as Completed
-                            </button>
+                            {job.status === 'Accepted' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOtpOpenId(otpOpenId === job.id ? null : job.id);
+                                  setOtpInput('');
+                                  setOtpError('');
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
+                              >
+                                <KeyRound className="h-4 w-4" />
+                                Start Job (Enter Customer PIN)
+                              </button>
+                            )}
+
+                            {job.status === 'In Progress' && (
+                              <button
+                                type="button"
+                                disabled={updatingBookingId === job.id}
+                                onClick={() => handleStatusChange(job.id, 'Completed')}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-800 disabled:opacity-60"
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                                Mark as Completed
+                              </button>
+                            )}
                           </div>
+
+                          {otpOpenId === job.id && job.status === 'Accepted' && (
+                            <form
+                              onSubmit={(e) => handleVerifyOtp(e, job.id)}
+                              className="mt-2 w-full rounded-xl border border-emerald-200 bg-emerald-50/80 p-3.5"
+                            >
+                              <p className="text-xs font-bold text-emerald-900">
+                                Enter 4-Digit Customer PIN
+                              </p>
+                              {otpError && (
+                                <p className="mt-1 text-xs font-medium text-red-600">{otpError}</p>
+                              )}
+                              <div className="mt-2 flex gap-2">
+                                <input
+                                  type="text"
+                                  maxLength={4}
+                                  required
+                                  value={otpInput}
+                                  onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
+                                  placeholder="e.g. 4829"
+                                  className="w-28 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-center font-mono text-sm tracking-widest text-slate-900"
+                                />
+                                <button
+                                  type="submit"
+                                  disabled={otpVerifying}
+                                  className="rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                                >
+                                  {otpVerifying ? 'Verifying...' : 'Verify & Start'}
+                                </button>
+                              </div>
+                            </form>
+                          )}
                         </div>
                       </div>
                     </article>

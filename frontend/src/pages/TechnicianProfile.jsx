@@ -10,11 +10,13 @@ import {
   Phone,
   ShieldCheck,
   Star,
+  Tag,
   Trash2,
   Wrench,
   Zap,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import bookingService from '../services/bookingService';
 import technicianService from '../services/technicianService';
 
@@ -38,12 +40,16 @@ function getInitials(name = '') {
 export default function TechnicianProfile() {
   const { id } = useParams();
   const { user } = useAuth();
+  const { showToast } = useToast();
 
   const [technician, setTechnician] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [imgError, setImgError] = useState(false);
+
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState(null);
 
   const [bookingForm, setBookingForm] = useState({
     scheduledDate: '',
@@ -108,6 +114,19 @@ export default function TechnicianProfile() {
     reader.readAsDataURL(file);
   };
 
+  const handleApplyPromo = () => {
+    if (!technician) return;
+    const baseTotal = Number(technician.visitFee) + (bookingForm.isEmergency ? 500 : 0);
+    const res = bookingService.validatePromoCode(promoInput, baseTotal);
+    if (res.valid) {
+      setAppliedPromo(res);
+      showToast(`Promo code ${res.code} applied!`, 'success');
+    } else {
+      setAppliedPromo(null);
+      showToast(res.label, 'error');
+    }
+  };
+
   const handleBookSubmit = async (e) => {
     e.preventDefault();
     if (!technician) return;
@@ -116,6 +135,11 @@ export default function TechnicianProfile() {
     setSubmittingBooking(true);
 
     const priorityFee = bookingForm.isEmergency ? 500 : 0;
+    const baseTotal = Number(technician.visitFee) + priorityFee;
+    const promoDiscount = appliedPromo?.valid
+      ? bookingService.validatePromoCode(appliedPromo.code, baseTotal).discountAmount
+      : 0;
+    const finalTotal = Math.max(0, baseTotal - promoDiscount);
 
     try {
       await bookingService.createBooking({
@@ -132,10 +156,15 @@ export default function TechnicianProfile() {
         issueDescription: bookingForm.issueDescription,
         isEmergency: bookingForm.isEmergency,
         issuePhoto: bookingForm.issuePhoto || null,
-        visitFee: Number(technician.visitFee) + priorityFee,
+        promoCode: appliedPromo?.valid ? appliedPromo.code : null,
+        discountAmount: promoDiscount,
+        visitFee: finalTotal,
       });
 
       setBookingSuccess(true);
+      setAppliedPromo(null);
+      setPromoInput('');
+      showToast('Booking request sent successfully!', 'success');
       setBookingForm({
         scheduledDate: '',
         timeSlot: TIME_SLOTS[0],
@@ -546,6 +575,60 @@ export default function TechnicianProfile() {
                     </span>
                   </span>
                 </label>
+
+                {/* Promo Code & Itemized Total */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+                  <label
+                    htmlFor="promo-code"
+                    className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600"
+                  >
+                    <Tag className="h-3.5 w-3.5 text-blue-700" />
+                    Promo Code (FIRST500 or FIX10)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      id="promo-code"
+                      type="text"
+                      value={promoInput}
+                      onChange={(e) => setPromoInput(e.target.value)}
+                      placeholder="Enter promo code"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs uppercase text-slate-900 focus:border-blue-700 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyPromo}
+                      className="shrink-0 rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+                    >
+                      Apply
+                    </button>
+                  </div>
+
+                  {(() => {
+                    const base = Number(technician.visitFee) + (bookingForm.isEmergency ? 500 : 0);
+                    const discount = appliedPromo?.valid
+                      ? bookingService.validatePromoCode(appliedPromo.code, base).discountAmount
+                      : 0;
+                    const finalTotal = Math.max(0, base - discount);
+                    return (
+                      <div className="mt-3 space-y-1 border-t border-slate-200 pt-2.5 text-xs">
+                        <div className="flex justify-between text-slate-600">
+                          <span>Visit Fee{bookingForm.isEmergency ? ' + Priority' : ''}</span>
+                          <span>Rs. {base.toLocaleString()}</span>
+                        </div>
+                        {discount > 0 && (
+                          <div className="flex justify-between font-semibold text-emerald-700">
+                            <span>Discount ({appliedPromo.code})</span>
+                            <span>- Rs. {discount.toLocaleString()}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between pt-1 text-sm font-bold text-slate-900">
+                          <span>Total Payable</span>
+                          <span>Rs. {finalTotal.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
 
                 <button
                   type="submit"
