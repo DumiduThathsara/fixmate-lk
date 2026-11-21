@@ -1,8 +1,20 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Briefcase, Lock, Mail, MapPin, Phone, User, Wrench } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import {
+  Briefcase,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  MapPin,
+  Phone,
+  Star,
+  User,
+  Wrench,
+} from 'lucide-react';
 import { SRI_LANKA_DISTRICTS } from '../constants/districts';
+import { useAuth } from '../context/AuthContext';
 
 const SERVICE_CATEGORIES = [
   'Plumbing',
@@ -14,10 +26,17 @@ const SERVICE_CATEGORIES = [
   'Masonry',
 ];
 
+const TRUST_CHECKPOINTS = [
+  'ID-Verified & Background-Checked Technicians',
+  'Transparent Upfront Visit Fees in LKR',
+  'Instant Booking & Real-Time Job Tracking',
+];
+
 const SL_PHONE_REGEX = /^07\d(?:\s?\d{3}\s?\d{4}|\d{7})$/;
 
 export default function Auth() {
   const [activeTab, setActiveTab] = useState('login');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -106,54 +125,115 @@ export default function Auth() {
   };
 
   return (
-    <section className="mx-auto flex max-w-lg flex-col justify-center px-4 py-12 sm:px-6">
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        {/* Header */}
-        <div className="border-b border-slate-200 bg-slate-50/70 px-6 py-5 text-center">
-          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-700 text-white shadow-sm">
+    <section className="grid min-h-[calc(100vh-4rem)] grid-cols-1 lg:grid-cols-12">
+      {/* Left Column: Visual Brand & Trust Showcase */}
+      <div className="relative hidden flex-col justify-between overflow-hidden bg-slate-950 p-12 text-white lg:col-span-5 lg:flex xl:col-span-6">
+        <img
+          src="https://images.unsplash.com/photo-1581092921461-eab62e97a780?auto=format&fit=crop&w=1200&q=80"
+          alt="Skilled FixMate LK technician at work"
+          className="absolute inset-0 h-full w-full object-cover opacity-40"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/80 to-blue-950/70"
+        />
+
+        {/* Top Content */}
+        <div className="relative z-10 flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-700 text-white shadow-md">
             <Wrench className="h-5 w-5" />
+          </span>
+          <div>
+            <p className="text-base font-bold tracking-tight text-white">FixMate LK</p>
+            <p className="text-xs text-slate-300">Sri Lanka&apos;s Trusted Home Service Network</p>
           </div>
-          <h1 className="text-xl font-bold text-slate-900">Welcome to FixMate LK</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {activeTab === 'login'
-              ? 'Sign in to manage your bookings or service jobs'
-              : 'Create an account to get started'}
+        </div>
+
+        {/* Middle Content */}
+        <div className="relative z-10 my-auto max-w-lg py-10">
+          <h2 className="text-3xl font-extrabold leading-tight tracking-tight text-white xl:text-4xl">
+            Fast, Verified Repairs at Your Doorstep
+          </h2>
+          <p className="mt-4 text-sm leading-relaxed text-slate-300 xl:text-base">
+            Whether you need an urgent plumber or want to grow your technician business across all
+            25 districts, you&apos;re in the right place.
           </p>
+
+          <ul className="mt-8 space-y-3.5">
+            {TRUST_CHECKPOINTS.map((point) => (
+              <li key={point} className="flex items-center gap-3 text-sm font-medium text-slate-100">
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-amber-400" />
+                <span>{point}</span>
+              </li>
+            ))}
+          </ul>
         </div>
 
-        {/* Tabs */}
-        <div className="grid grid-cols-2 border-b border-slate-200 bg-slate-50">
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('login');
-              setError('');
-            }}
-            className={`py-3 text-sm font-semibold transition-colors ${
-              activeTab === 'login'
-                ? 'border-b-2 border-blue-700 bg-white text-blue-700'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Login
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('signup');
-              setError('');
-            }}
-            className={`py-3 text-sm font-semibold transition-colors ${
-              activeTab === 'signup'
-                ? 'border-b-2 border-blue-700 bg-white text-blue-700'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Sign Up
-          </button>
+        {/* Bottom Testimonial Card */}
+        <div className="relative z-10 max-w-lg rounded-xl border border-white/15 bg-white/10 p-5 backdrop-blur-md">
+          <div className="flex items-center gap-1">
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <Star key={idx} className="h-4 w-4 fill-amber-400 text-amber-400" />
+            ))}
+          </div>
+          <p className="mt-2.5 text-sm leading-relaxed text-slate-100">
+            &ldquo;Found an AC technician in Colombo within 15 minutes. Super clean and reliable
+            service!&rdquo;
+          </p>
+          <p className="mt-2 text-xs font-semibold text-slate-300">&mdash; Kasun Perera, Colombo</p>
         </div>
+      </div>
 
-        <div className="p-6 sm:p-8">
+      {/* Right Column: Interactive Auth Form */}
+      <div className="flex items-center justify-center bg-slate-50 px-4 py-10 sm:px-8 lg:col-span-7 xl:col-span-6">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200/80 bg-white p-6 shadow-lg sm:p-8">
+          {/* Card Header */}
+          <div className="mb-6 text-center">
+            <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-700 text-white shadow-sm lg:hidden">
+              <Wrench className="h-5 w-5" />
+            </div>
+            <h1 className="text-xl font-bold text-slate-900">
+              {activeTab === 'login' ? 'Sign in to FixMate LK' : 'Create your FixMate LK account'}
+            </h1>
+            <p className="mt-1 text-sm text-slate-500">
+              {activeTab === 'login'
+                ? 'Manage your bookings or technician jobs'
+                : 'Join thousands of homeowners and skilled pros'}
+            </p>
+          </div>
+
+          {/* Segmented Pill Switcher */}
+          <div className="mb-6 grid grid-cols-2 rounded-xl bg-slate-100 p-1">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('login');
+                setError('');
+              }}
+              className={`rounded-lg py-2 text-sm font-semibold transition-all ${
+                activeTab === 'login'
+                  ? 'bg-white text-blue-700 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Login
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('signup');
+                setError('');
+              }}
+              className={`rounded-lg py-2 text-sm font-semibold transition-all ${
+                activeTab === 'signup'
+                  ? 'bg-white text-blue-700 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Sign Up
+            </button>
+          </div>
+
           {error && (
             <div
               role="alert"
@@ -191,13 +271,25 @@ export default function Auth() {
                   <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
                     id="login-password"
-                    type="password"
+                    type={showLoginPassword ? 'text' : 'password'}
                     required
                     value={loginForm.password}
                     onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
                     placeholder="Enter your password"
-                    className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/20"
+                    className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/20"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPassword((prev) => !prev)}
+                    aria-label={showLoginPassword ? 'Hide password' : 'Show password'}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showLoginPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
               </div>
 
