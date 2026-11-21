@@ -1,88 +1,33 @@
 import apiClient from './apiClient';
-import { MOCK_TECHNICIANS, SERVICE_CATEGORIES } from '../data/mockData';
 
-const USE_API = import.meta.env.VITE_ENABLE_API === 'true';
-const TECHNICIANS_STORAGE_KEY = 'fixmate_technicians';
-const SAVED_TECHNICIANS_KEY = 'fixmate_saved_technicians';
+const SAVED_IDS_CACHE_KEY = 'fixmate_saved_technicians_cache';
 
-function normalizeTechnician(tech, index = 0) {
-  const deterministicKm = Number((1.4 + ((index * 7) % 45) / 10).toFixed(1));
-  const rating = Number(tech.rating || 4.8);
-  return {
-    available: true,
-    verified: true,
-    workingHours: '8:00 AM - 6:00 PM (Mon - Sat)',
-    skills: [tech.category, 'Diagnostics', 'Preventive Maintenance'],
-    phone: '077 456 7890',
-    distanceKm: tech.distanceKm ?? deterministicKm,
-    isBestMatch: tech.verified !== false && rating >= 4.8,
-    ...tech,
-  };
-}
-
-function readStoredTechnicians() {
+function readSavedIdsCache() {
   try {
-    const raw = localStorage.getItem(TECHNICIANS_STORAGE_KEY);
-    if (!raw) {
-      const seeded = MOCK_TECHNICIANS.map(normalizeTechnician);
-      localStorage.setItem(TECHNICIANS_STORAGE_KEY, JSON.stringify(seeded));
-      return seeded;
-    }
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0
-      ? parsed.map(normalizeTechnician)
-      : MOCK_TECHNICIANS.map(normalizeTechnician);
+    const raw = localStorage.getItem(SAVED_IDS_CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    const seeded = MOCK_TECHNICIANS.map(normalizeTechnician);
-    localStorage.setItem(TECHNICIANS_STORAGE_KEY, JSON.stringify(seeded));
-    return seeded;
+    return [];
   }
 }
 
-function writeStoredTechnicians(technicians) {
-  localStorage.setItem(TECHNICIANS_STORAGE_KEY, JSON.stringify(technicians));
+function writeSavedIdsCache(ids) {
+  localStorage.setItem(SAVED_IDS_CACHE_KEY, JSON.stringify(ids));
 }
 
-/**
- * Fetch available service categories.
- */
 export async function getCategories() {
-  try {
-    if (USE_API) {
-      const { data } = await apiClient.get('/categories');
-      return data;
-    }
-    return SERVICE_CATEGORIES;
-  } catch (error) {
-    console.error('Failed to fetch categories:', error);
-    throw error;
-  }
+  const { data } = await apiClient.get('/categories');
+  return data;
 }
 
-/**
- * Fetch top-rated featured technicians.
- */
 export async function getFeaturedTechnicians(limit = 4) {
-  try {
-    if (USE_API) {
-      const { data } = await apiClient.get('/technicians', {
-        params: { featured: true, limit },
-      });
-      return data;
-    }
-    return [...readStoredTechnicians()]
-      .sort((a, b) => b.rating - a.rating || b.reviewCount - a.reviewCount)
-      .slice(0, limit);
-  } catch (error) {
-    console.error('Failed to fetch featured technicians:', error);
-    throw error;
-  }
+  const { data } = await apiClient.get('/technicians/featured', {
+    params: { limit },
+  });
+  return data;
 }
 
-/**
- * Search, filter, sort, and paginate technicians.
- * Mirrors GET /api/v1/technicians?page=1&limit=6 response shape.
- */
 export async function searchTechnicians({
   search = '',
   category = 'All',
@@ -94,266 +39,64 @@ export async function searchTechnicians({
   page = 1,
   limit = 6,
 } = {}) {
-  try {
-    if (USE_API) {
-      const { data } = await apiClient.get('/technicians', {
-        params: { search, category, district, minRating, maxFee, urgentOnly, sortBy, page, limit },
-      });
-      return data;
-    }
-
-    const query = search.trim().toLowerCase();
-    const filtered = readStoredTechnicians().filter((tech) => {
-      if (tech.rejected) return false;
-      if (urgentOnly && !tech.available) return false;
-      if (query) {
-        const matchesSkills =
-          Array.isArray(tech.skills) &&
-          tech.skills.some((s) => s.toLowerCase().includes(query));
-        const matchesQuery =
-          tech.name.toLowerCase().includes(query) ||
-          (tech.bio && tech.bio.toLowerCase().includes(query)) ||
-          tech.category.toLowerCase().includes(query) ||
-          matchesSkills;
-        if (!matchesQuery) return false;
-      }
-
-      if (category && category !== 'All' && tech.category !== category) {
-        return false;
-      }
-
-      if (district && district !== 'All' && tech.district !== district) {
-        return false;
-      }
-
-      if (minRating > 0 && tech.rating < Number(minRating)) {
-        return false;
-      }
-
-      if (maxFee && tech.visitFee > Number(maxFee)) {
-        return false;
-      }
-
-      return true;
-    });
-
-    const sorted = [...filtered].sort((a, b) => {
-      switch (sortBy) {
-        case 'fee_asc':
-          return a.visitFee - b.visitFee;
-        case 'fee_desc':
-          return b.visitFee - a.visitFee;
-        case 'experience_desc':
-          return b.experienceYears - a.experienceYears;
-        case 'rating_desc':
-        default:
-          return b.rating - a.rating || b.reviewCount - a.reviewCount;
-      }
-    });
-
-    const safeLimit = Math.max(1, Number(limit) || 6);
-    const totalItems = sorted.length;
-    const totalPages = Math.max(1, Math.ceil(totalItems / safeLimit));
-    const currentPage = Math.min(Math.max(1, Number(page) || 1), totalPages);
-    const startIndex = (currentPage - 1) * safeLimit;
-    const data = sorted.slice(startIndex, startIndex + safeLimit);
-
-    return {
-      data,
-      totalItems,
-      totalPages,
-      currentPage,
-    };
-  } catch (error) {
-    console.error('Failed to search technicians:', error);
-    throw error;
-  }
+  const { data } = await apiClient.get('/technicians', {
+    params: {
+      search,
+      category,
+      district,
+      minRating,
+      maxFee,
+      urgentOnly,
+      sortBy,
+      page,
+      limit,
+    },
+  });
+  return data;
 }
 
-/**
- * Fetch a single technician by ID.
- */
 export async function getTechnicianById(id) {
-  try {
-    if (USE_API) {
-      const { data } = await apiClient.get(`/technicians/${id}`);
-      return data;
-    }
-
-    const technicians = readStoredTechnicians();
-    const match = technicians.find((t) => t.id === id);
-    if (!match) {
-      throw new Error('Technician not found.');
-    }
-    return match;
-  } catch (error) {
-    console.error('Failed to fetch technician by id:', error);
-    throw error;
-  }
+  const { data } = await apiClient.get(`/technicians/${id}`);
+  return data;
 }
 
-/**
- * Match the logged-in technician from AuthContext or create/return an editable profile record.
- */
-export async function getTechnicianByEmailOrUser(user) {
-  try {
-    if (USE_API) {
-      const { data } = await apiClient.get('/technicians/me');
-      return data;
-    }
-
-    const technicians = readStoredTechnicians();
-    const email = user?.email?.toLowerCase();
-    const existing = technicians.find(
-      (t) =>
-        (user?.id && t.id === user.id) ||
-        (email && t.email && t.email.toLowerCase() === email)
-    );
-
-    if (existing) {
-      return existing;
-    }
-
-    const newProfile = normalizeTechnician({
-      id: user?.id || 'tech-1',
-      name: user?.name || 'Kasun Perera',
-      email: user?.email || '',
-      phone: user?.phone || '077 456 7890',
-      category: user?.serviceCategory || 'Plumbing',
-      district: user?.district || 'Colombo',
-      rating: 4.9,
-      reviewCount: 24,
-      visitFee: 1500,
-      experienceYears: 5,
-      verified: true,
-      available: true,
-      workingHours: '8:00 AM - 6:00 PM (Mon - Sat)',
-      skills: [user?.serviceCategory || 'Plumbing', 'Diagnostics', 'Emergency Repairs'],
-      bio: 'Verified local technician providing reliable, punctual residential and commercial repairs.',
-      avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-    });
-
-    writeStoredTechnicians([newProfile, ...technicians]);
-    return newProfile;
-  } catch (error) {
-    console.error('Failed to load technician profile:', error);
-    throw error;
-  }
+export async function getTechnicianByEmailOrUser() {
+  const { data } = await apiClient.get('/technicians/me');
+  return data;
 }
 
-/**
- * Toggle technician availability for new bookings.
- */
-export async function updateTechnicianAvailability(technicianId, isAvailable) {
-  try {
-    if (USE_API) {
-      const { data } = await apiClient.patch(`/technicians/${technicianId}/availability`, {
-        available: isAvailable,
-      });
-      return data;
-    }
-
-    const technicians = readStoredTechnicians();
-    let updatedTech = null;
-
-    const next = technicians.map((tech) => {
-      if (tech.id === technicianId) {
-        updatedTech = { ...tech, available: Boolean(isAvailable) };
-        return updatedTech;
-      }
-      return tech;
-    });
-
-    if (updatedTech) {
-      writeStoredTechnicians(next);
-    }
-
-    return updatedTech || { id: technicianId, available: Boolean(isAvailable) };
-  } catch (error) {
-    console.error('Failed to update availability:', error);
-    throw error;
-  }
+export async function updateTechnicianAvailability(_technicianId, isAvailable) {
+  const { data } = await apiClient.patch('/technicians/availability', {
+    available: Boolean(isAvailable),
+  });
+  return data;
 }
 
-/**
- * Update customizable technician profile fields across the shared store.
- */
-export async function updateTechnicianProfile(id, updatedFields) {
-  try {
-    if (USE_API) {
-      const { data } = await apiClient.patch(`/technicians/${id}/profile`, updatedFields);
-      return data;
-    }
-
-    const technicians = readStoredTechnicians();
-    let updatedTech = null;
-
-    const sanitized = {
-      ...updatedFields,
-      ...(updatedFields.visitFee !== undefined
-        ? { visitFee: Number(updatedFields.visitFee) }
-        : {}),
-      ...(updatedFields.experienceYears !== undefined
-        ? { experienceYears: Number(updatedFields.experienceYears) }
-        : {}),
-      ...(updatedFields.bio !== undefined
-        ? { bio: String(updatedFields.bio).trim() }
-        : {}),
-    };
-
-    const next = technicians.map((tech) => {
-      if (tech.id === id) {
-        updatedTech = normalizeTechnician({ ...tech, ...sanitized });
-        return updatedTech;
-      }
-      return tech;
-    });
-
-    if (!updatedTech) {
-      updatedTech = normalizeTechnician({ id, ...sanitized });
-      next.unshift(updatedTech);
-    }
-
-    writeStoredTechnicians(next);
-    return updatedTech;
-  } catch (error) {
-    console.error('Failed to update technician profile:', error);
-    throw error;
-  }
+export async function updateTechnicianProfile(_id, updatedFields) {
+  const { data } = await apiClient.put('/technicians/profile', updatedFields);
+  return data;
 }
 
-/**
- * Get saved/bookmarked technician IDs.
- */
 export function getSavedTechnicianIds() {
-  try {
-    const raw = localStorage.getItem(SAVED_TECHNICIANS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
+  if (!localStorage.getItem('fixmate_token')) {
     return [];
   }
+  return readSavedIdsCache();
 }
 
-/**
- * Toggle a technician ID in saved/bookmarked pros.
- */
 export async function toggleSavedTechnician(techId) {
-  const current = getSavedTechnicianIds();
-  const exists = current.includes(techId);
-  const next = exists ? current.filter((id) => id !== techId) : [...current, techId];
-  localStorage.setItem(SAVED_TECHNICIANS_KEY, JSON.stringify(next));
-  return { savedIds: next, isSaved: !exists };
+  const { data } = await apiClient.post(`/users/saved-technicians/${techId}`);
+  writeSavedIdsCache(data.savedIds || []);
+  return data;
 }
 
-/**
- * Retrieve full technician objects for all saved/bookmarked IDs.
- */
 export async function getSavedTechnicians() {
-  const savedIds = getSavedTechnicianIds();
-  if (savedIds.length === 0) return [];
-  const all = readStoredTechnicians();
-  return all.filter((t) => savedIds.includes(t.id) && !t.rejected);
+  if (!localStorage.getItem('fixmate_token')) {
+    return [];
+  }
+  const { data } = await apiClient.get('/users/saved-technicians');
+  writeSavedIdsCache(data.map((t) => t.id));
+  return data;
 }
 
 const technicianService = {

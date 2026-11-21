@@ -1,10 +1,29 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import authService from '../services/authService';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => authService.getCurrentUser());
+
+  useEffect(() => {
+    let active = true;
+    if (authService.getCurrentUser()) {
+      authService
+        .fetchCurrentUser()
+        .then((freshUser) => {
+          if (active && freshUser) {
+            setUser(freshUser);
+          }
+        })
+        .catch(() => {
+          if (active) setUser(null);
+        });
+    }
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const login = async (credentials) => {
     const data = await authService.loginCustomerOrTech(credentials);
