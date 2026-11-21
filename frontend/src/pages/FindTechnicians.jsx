@@ -5,11 +5,9 @@ import {
   RotateCcw,
   Search,
   SlidersHorizontal,
-  Sparkles,
   Star,
   Zap,
 } from 'lucide-react';
-import AiDiagnosisModal from '../components/AiDiagnosisModal';
 import Pagination from '../components/Pagination';
 import TechnicianCard from '../components/TechnicianCard';
 import { SRI_LANKA_DISTRICTS } from '../constants/districts';
@@ -30,7 +28,6 @@ export default function FindTechnicians() {
 
   const [categories, setCategories] = useState([]);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [aiModalOpen, setAiModalOpen] = useState(false);
 
   // Filter & pagination state initialized from URL query params
   const [search, setSearch] = useState('');
@@ -178,14 +175,6 @@ export default function FindTechnicians() {
               <CheckCircle2 className="h-3.5 w-3.5 text-amber-400" />
               Instant Online Booking
             </span>
-            <button
-              type="button"
-              onClick={() => setAiModalOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-500/20 px-3.5 py-1 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/30"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              AI Issue Helper
-            </button>
           </div>
         </div>
       </section>
@@ -457,8 +446,6 @@ export default function FindTechnicians() {
         </div>
       </div>
       </div>
-
-      <AiDiagnosisModal isOpen={aiModalOpen} onClose={() => setAiModalOpen(false)} />
     </div>
   );
 }

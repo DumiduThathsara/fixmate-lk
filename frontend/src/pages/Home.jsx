@@ -11,11 +11,9 @@ import {
   Settings,
   ShieldCheck,
   Snowflake,
-  Sparkles,
   Wrench,
   Zap,
 } from 'lucide-react';
-import AiDiagnosisModal from '../components/AiDiagnosisModal';
 import TechnicianCard from '../components/TechnicianCard';
 import { SRI_LANKA_DISTRICTS } from '../constants/districts';
 import technicianService from '../services/technicianService';
@@ -58,7 +56,6 @@ export default function Home() {
   const [featuredTechnicians, setFeaturedTechnicians] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
-  const [aiModalOpen, setAiModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -185,19 +182,8 @@ export default function Home() {
               </div>
             </form>
 
-            {/* AI Issue Helper Trigger + Trust Indicators Row */}
-            <div className="mt-5 flex flex-wrap items-center gap-4">
-              <button
-                type="button"
-                onClick={() => setAiModalOpen(true)}
-                className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-500/15 px-4 py-1.5 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/25"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                Not sure who to book? Try AI Issue Diagnosis
-              </button>
-            </div>
-
-            <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-medium text-slate-300 sm:text-sm">
+            {/* Trust Indicators Row */}
+            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-medium text-slate-300 sm:text-sm">
               <span className="inline-flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4 text-amber-400" />
                 100% ID Verified Pros
@@ -335,8 +321,6 @@ export default function Home() {
           </Link>
         </div>
       </section>
-
-      <AiDiagnosisModal isOpen={aiModalOpen} onClose={() => setAiModalOpen(false)} />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import FloatingAiWidget from './components/FloatingAiWidget';
 import Footer from './components/Footer';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -71,6 +72,7 @@ function App() {
             </Routes>
           </main>
           <Footer />
+          <FloatingAiWidget />
         </div>
       </BrowserRouter>
     </AuthProvider>
